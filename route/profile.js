@@ -9,8 +9,6 @@ router.post('/profile', async (req,res)=>{
         if(!userFind){
             return res.status(401).json({message: "User doesnt exist "});
         }
-        
-            
 
     }
     catch(err){

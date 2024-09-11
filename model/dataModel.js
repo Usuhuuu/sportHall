@@ -1,68 +1,84 @@
-const mongoose = require('mongoose')
-const {Schema, Types} = mongoose
+const mongoose = require('mongoose');
+const ObjectId = mongoose.Types.ObjectId;
+const { Schema } = mongoose;
 
-const userSchema =  new Schema({
-    userName_ID : {
+// User Schema
+const userSchema = new Schema({
+    
+    user_ID: {
         type: String,
-        require: true,
-        unique:true
+        required: true,  
+        unique: true
     },
-    email : {
-        type:String,
+    email: {
+        type: String,
         required: true,
+        unique: true   
     },
-    phoneNumber:{
-        type: Number,
-        require: true
+    phoneNumber: {
+        type: String,   
+        required: true
     },
-    password: {
+    userType: {
         type: String,
-        require:true
+        enum: ['admin', 'user', 'contractor'], 
+        required: true
     },
-    userType:{
-        type: String,
-        enum: ['admin', 'user', 'contracter', 'guest'],
-        require: true
+    // User AgreeTerms subDocument dotor hadgalna
+    userAgreeTerms:{
+        agree_terms: {
+            type: Boolean,
+            required: true
+        },
+        agree_privacy: {
+            type: Boolean,
+            required: true
+        }
     }
+},{
+    timestamps: true,
 });
 const User = mongoose.model('User', userSchema);
 
-const userNames = new Schema({
-    userName_ID:{
-        type:Schema.Types.ObjectId,
-        require:true,
-        ref: "User"
-    },
-    firstName:{
-        type:String,
-        require:true,
-    },
-    lastName:{
-        type:String,
+// UserPassword Schema
+const userPasswordSchema = new Schema({
+    user_ID: {
+        type: String,
         required: true,
+        ref: "User",
     },
-})
-const UserNames = mongoose.model("User_Names", userNames)
+    password: {
+        type: String,
+        required: true,
+        minlength: 8
+    },
+    salt: {
+        type: String,
+        required: true
+    }
+},{ 
+ });
+const UserPassword = mongoose.model('UserPassword', userPasswordSchema);
 
-const userAgreeSchema = new Schema({
-    userName_ID:{
-        type: Schema.Types.ObjectId,
-        require: true,
+// UserNames Schema
+const userNamesSchema = new Schema({
+    user_ID: {
+        type: String,
+        required: true,
         ref: "User"
     },
-    agree_terms:{
-        type: Boolean,
-        require: true,
-        null: false
+    firstName: {
+        type: String,
+        required: true
     },
-    agree_privacy:{
-        type: Boolean,
-        require: true,
-        null: false
+    lastName: {
+        type: String,
+        required: true
     }
-})
+},{ 
+ });
+const UserNames = mongoose.model("UserNames", userNamesSchema);
 
-const UserAgreements = mongoose.model("UserAgreeterms", userAgreeSchema)
 
 
-module.exports = {User, UserAgreements, UserNames}
+module.exports = { User, UserNames, UserPassword };
