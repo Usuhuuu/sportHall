@@ -1,8 +1,9 @@
 const express = require('express');
 const router = express.Router();
-const { User } = require('../model/dataModel');
-const bcrypt = require('bcrypt');
+const { User,UserPassword } = require('../model/dataModel');
+const crypto = require('crypto')
 const jwt = require('jsonwebtoken');
+const hmacPromise = require('./Functions/HMAC')
 require('dotenv').config();
 
 router.post('/login', async (req, res) => {
@@ -10,15 +11,20 @@ router.post('/login', async (req, res) => {
     console.log(`Received login request: email=${email}`);
     try {
         const userFind = await User.findOne({ email: email });
+        const userID = userFind.userName_ID;
         if (!userFind) {
             return res.status(401).json({ message: "User does not exist" });
         }
-        const isPasswordValid = await bcrypt.compare(password, userFind.hashedPassword);
-        if (isPasswordValid) {
+        //Database Salt, password ogson passwordtai tulgah gej retrieve hiij awchirna
+        const user_Password_Data_Retrieve = await UserPassword.findOne({user_ID: userID})
+        const storedSalt = user_Password_Data_Retrieve.salt;
+        const storedHash = user_Password_Data_Retrieve.password;
+        const hashedPassword = await hmacPromise(password, storedSalt, 2000, 64, 'sha512');
+        if (hashedPassword === storedHash) {  
             const accessToken = jwt.sign(
                 {
-                    userID: userFind._id,  // Use userFind._id instead of User.userID
-                    email: userFind.email, // Use userFind.email instead of User.email
+                    userID: userFind._id,  
+                    email: userFind.email, 
                 },
                 process.env.JWT_ACCESS_SECRET,
                 {
@@ -28,7 +34,7 @@ router.post('/login', async (req, res) => {
             );
             const refreshToken = jwt.sign(
                 {
-                    userID: userFind._id, // Use userFind._id instead of User.userID
+                    userID: userFind._id, 
                 },
                 process.env.JWT_REFRESH_SECRET,
                 {
