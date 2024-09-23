@@ -5,8 +5,8 @@ const connectDB = async () => {
     try{
         await mongoose.connect(connectionString, {
             authSource: 'admin', 
-            useUnifiedTopology: true,
-            useNewUrlParser: true
+            //useUnifiedTopology: true,
+            //useNewUrlParser: true
         })
         console.log("successfully connected DB")
     }catch(err){

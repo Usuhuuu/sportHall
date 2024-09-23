@@ -1,13 +1,11 @@
 const mongoose = require('mongoose');
-const ObjectId = mongoose.Types.ObjectId;
 const { Schema } = mongoose;
 
 // User Schema
 const userSchema = new Schema({
-    
     user_ID: {
-        type: String,
-        required: true,  
+        type: Schema.Types.ObjectId,
+        default: () => new mongoose.Types.ObjectId(),
         unique: true
     },
     email: {
@@ -22,10 +20,31 @@ const userSchema = new Schema({
     userType: {
         type: String,
         enum: ['admin', 'user', 'contractor'], 
-        required: true
+        default: 'user',
     },
-    // User AgreeTerms subDocument dotor hadgalna
-    userAgreeTerms:{
+    // User subDocuments
+    userNames: {
+        firstName: {
+            type: String,
+            required: true
+        },
+        lastName: {
+            type: String,
+            required: true
+        }
+    },
+    userPassword: {
+        password: {
+            type: String,
+            required: true,
+            minlength: 8
+        },
+        salt: {
+            type: String,
+            required: true
+        }
+    },
+    userAgreeTerms: {
         agree_terms: {
             type: Boolean,
             required: true
@@ -34,51 +53,159 @@ const userSchema = new Schema({
             type: Boolean,
             required: true
         }
-    }
-},{
-    timestamps: true,
+    },
+    
+    
+}, {
+    timestamps: true
 });
 const User = mongoose.model('User', userSchema);
 
-// UserPassword Schema
-const userPasswordSchema = new Schema({
-    user_ID: {
-        type: String,
-        required: true,
-        ref: "User",
+// Transaction Success Schema
+const transactionSchema  = new Schema({
+    transaction_ID: {
+        type: Schema.Types.ObjectId,
+        default: () => new mongoose.Types.ObjectId(),
+        unique: true,
     },
-    password: {
-        type: String,
+    zaal_ID: {
+        type: Schema.Types.ObjectId,
         required: true,
-        minlength: 8
+        ref: "ZaalSchema"
     },
-    salt: {
-        type: String,
-        required: true
-    }
-},{ 
- });
-const UserPassword = mongoose.model('UserPassword', userPasswordSchema);
-
-// UserNames Schema
-const userNamesSchema = new Schema({
     user_ID: {
-        type: String,
+        type: Schema.Types.ObjectId,
         required: true,
         ref: "User"
     },
-    firstName: {
+    day: {
+        type: Date, 
+        required: true
+    },
+    start_time: {
+        type: String, 
+        required: true
+    },
+    end_time: {
         type: String,
         required: true
     },
-    lastName: {
+    amountPaid: {
+        type: Number,
+        required: true
+    },
+    paymentStatus: {
+        type: String,
+        enum: ['pending', 'success','failed'],
+        default: 'failed'
+    },
+    
+}, {
+    timestamps: true
+});
+const TransactionSchema = mongoose.model("Transactions", transactionSchema);
+
+// Transaction Canceled Schema
+const transCanceledSchema = new Schema({
+    transaction_ID:{
+        type: Schema.Types.ObjectId,
+        required:true,
+        ref:'Transactions'
+    },
+    refund_status:{
+        type:String,
+        enum:['success', 'pending','failed', "canceled"],
+        default:'failed'
+    },
+    cancellationReason: {
+        type: String,
+    },
+}, {
+    timestamps: true
+});
+const Trans_Canceled = mongoose.model("Trans_Canceled", transCanceledSchema);
+
+// Zaal Schema (Sport Hall)
+const zaalSchema = new Schema({
+    zaal_ID: {
+        type: Schema.Types.ObjectId,
+        default: () => new mongoose.Types.ObjectId(),
+        required: true,
+        unique: true
+    },
+    zaal_type: {
+        type: String,
+        required: true,
+    },
+    zaal_location: {
         type: String,
         required: true
-    }
-},{ 
- });
-const UserNames = mongoose.model("UserNames", userNamesSchema);
+    },
+    zaal_owner: {
+        type: Schema.Types.ObjectId,
+        required: true,
+        ref: "User"
+    },
+    //sub Document for zaalnii medeelel zurag geh met
+    zaal_detail:{
+        //google cloud deer hadgalah tolovlogoo bga
+        imageURL:{
+            type: String,
+            require: true
+        },
+
+    },
+    base_time_slots:[{
+        start_time: {
+            type: String,
+            required: true,
+        },
+        end_time:{
+            type: String,
+            required: true,
+        },
+    }],
+}, {
+    timestamps: true
+});
+const ZaalSchema = mongoose.model("ZaalSchema", zaalSchema);
 
 
+// Chat Schema
+const groupChatSchema = new Schema({
+    groupId: {
+        type: Schema.Types.ObjectId,
+        default: () => new mongoose.Types.ObjectId(),
+        required: true,
+        unique: true
+    },
+    messages: [
+        {
+            senderId: {
+                type: Schema.Types.ObjectId,
+                required: true,
+                ref: 'User'  // Reference to the User schema
+            },
+            message: {
+                type: String,
+                required: true
+            },
+            timestamp: {
+                type: Date,
+                default: Date.now
+            }
+        }
+    ]
+}, {
+    timestamps: true
+});
 
-module.exports = { User, UserNames, UserPassword };
+const Group_Chat_Schema = mongoose.model("Group_Chat_Schema", groupChatSchema);
+
+module.exports = { 
+    User,
+    TransactionSchema,
+    Trans_Canceled,
+    ZaalSchema,
+    Group_Chat_Schema
+};
