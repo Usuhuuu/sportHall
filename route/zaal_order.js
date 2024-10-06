@@ -1,9 +1,10 @@
 const express = require('express');
-const {ZaalSchema, TransactionSchema,Trans_Canceled, User} = require('../model/dataModel')
+const {ZaalSchema, TransactionSchema,Trans_Canceled, User, Group_Chat_Schema} = require('../model/dataModel')
 const router = express.Router()
 const reserveTimeSlot = require('./Functions/zaal_Time')
 const {authenticateJW} = require('./Functions/auth')
 const {emailQueue} = require('./Functions/mailQueue')
+
 
 
 router.post('/reserve', async (res,req)=> {
@@ -18,36 +19,49 @@ router.post('/reserve', async (res,req)=> {
                 day: date,
                 start_time:startTime,
                 end_time: endTime,
-                paymentStatus: 'success'
+                paymentStatus: 'success',
             })
             if(isReserved) return res.status(400).send('Time slot is already reserved.', {available: false});
             //payment heseg orood success hivel update hiin
-            const payment = true // if payment successfully occured it will true
+            const payment = {
+                amount: amountPaid,
+                userId: user_ID,
+                callbackUrl: `${process.env.BASE_URL}/api/payment/callback`,
+            }
+            
             if(payment){
                 try{
                     const reserving = await TransactionSchema.create(
                         {
                             zaal_ID: zaalId,
                             user_ID: user_ID,
-                            day_Time: dayTime,
+                            day: date,
                             amountPaid: amountPaid,
                             paymentStatus: 'success'
                         },
                     ) 
                     if(reserving){
-                        await emailQueue.add('reservationEmail', {
-                            fromMail: process.env.GMAIL_USER,
-                            toMail: email,
-                            subject: "Successfully Reserved",
-                            text: `${date,'T'+ startTime," ",endTime}`
-                        })
+                        try{
+                            const newGroup =await Group_Chat_Schema.create({
+                                members:[user_ID],
+                                messages:[]
+                            })
+                            await emailQueue.add('reservationEmail', {
+                                fromMail: process.env.GMAIL_USER,
+                                toMail: email,
+                                subject: "Successfully Reserved",
+                                text: `${date,'T'+ startTime," ",endTime}`
+                            })
+                            return res.status(200).send('Successfully Reserved Sda')
+                        }catch(err){
+                            console.log('create groupchat and send email')
+                        }
                     }
-                    return res.status(200).send('Successfully Reserved Sda')
-                    
                 } catch(err){
                     console.log(err)
                     res.status(500).send("failed to reserve")
                 }
+                
             } else return res.status(400).send('Failed to pay');
             res.status(200).send({message: `Successfully reserved on ${date,'T'+ startTime," ",endTime}`, available: false})
         }
@@ -56,6 +70,11 @@ router.post('/reserve', async (res,req)=> {
     }
     
 })
+
+
+
+
+
 
 router.post('/cancelreserve', authenticateJW, async (res,req)=> {
     const {transaction_ID,reason} = req.body
@@ -85,6 +104,8 @@ router.post('/cancelreserve', authenticateJW, async (res,req)=> {
         return res.status(500).send('error transaction cancel');
     }
 })
+
+
 
 router.post('/zaalburtgel',authenticateJW, async (req,res)=> {
     const {user_ID,zaal_location} =req.body

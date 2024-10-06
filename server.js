@@ -69,8 +69,8 @@ app.use(limiter);
 //
 
 //Router define
-const signup = require("./route/signup.js")
-const login = require("./route/login.js")
+const signup = require("./route/login&register/signup.js")
+const login = require("./route/login&register/login.js")
 const profile = require("./route/profile.js")
 const chatRoute = require("./route/chatRoute.js")
 

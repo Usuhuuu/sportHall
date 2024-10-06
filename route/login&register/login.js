@@ -1,9 +1,9 @@
 const express = require('express');
 const router = express.Router();
-const { User,UserPassword } = require('../model/dataModel');
+const { User,UserPassword } = require('../../model/dataModel');
 const crypto = require('crypto')
 const jwt = require('jsonwebtoken');
-const {hmacPromise} = require('./Functions/HMAC')
+const {hmacPromise} = require('../Functions/HMAC')
 require('dotenv').config();
 
 router.post('/login', async (req, res) => {

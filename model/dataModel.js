@@ -54,8 +54,6 @@ const userSchema = new Schema({
             required: true
         }
     },
-    
-    
 }, {
     timestamps: true
 });
@@ -96,7 +94,7 @@ const transactionSchema  = new Schema({
     },
     paymentStatus: {
         type: String,
-        enum: ['pending', 'success','failed'],
+        enum: ['pending', 'success','failed', 'aborted'],
         default: 'failed'
     },
     
@@ -133,7 +131,7 @@ const zaalSchema = new Schema({
         required: true,
         unique: true
     },
-    zaal_type: {
+    zaal_types: {
         type: String,
         required: true,
     },
@@ -153,7 +151,6 @@ const zaalSchema = new Schema({
             type: String,
             require: true
         },
-
     },
     base_time_slots:[{
         start_time: {
@@ -179,12 +176,19 @@ const groupChatSchema = new Schema({
         required: true,
         unique: true
     },
+    members:[
+        {
+            type: Schema.Types.ObjectId,
+            required: true,
+            ref: 'User'
+        }
+    ],
     messages: [
         {
             senderId: {
                 type: Schema.Types.ObjectId,
                 required: true,
-                ref: 'User'  // Reference to the User schema
+                ref: 'User'  
             },
             message: {
                 type: String,
