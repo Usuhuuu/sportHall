@@ -5,19 +5,19 @@ const setupWebSocket= (server) => {
     const io = new Server(server)
     io.on("connection", (socket) => {
         console.log("User Connected ", socket.id)
-        socket.on('joinGroup',async (groupId) => {
+        socket.on('joinGroup',async ({ groupId, userId }) => {
             // member uguig shalgan
-            const isMember = await checkGroupMembership(user.id, groupId);
-            if (!isMember) {
+            const isMember = await Group_Chat_Schema.findOne(groupId);
+            if (!isMember || !isMember.members.includes(userId)) {
                 socket.emit('errorMessage', { error: 'You are not allowed to join this group.' });
                 return;
             }
             socket.join(groupId);
-            console.log(`User joined group: ${groupId}`);
+            console.log(`User ${userId} joined group: ${groupId}`);;
             // Load chat history from MongoDB and send to the user
-            Message.find({ groupId }).sort({ timestamp: 1 }).then((messages) => {
-                socket.emit('chatHistory', messages);
-            });
+            const messages = group.messages.sort((a, b) => a.timestamp - b.timestamp);
+            socket.emit('chatHistory', messages);
+
             const MAX_MESSAGE_LENGTH = 2000;
             socket.on('sendMessage', async (data) => {
                 const { groupId, senderId, message } = data;

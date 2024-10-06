@@ -2,13 +2,13 @@ const express = require('express')
 const router = express.Router();
 const {sha3_256} = require('js-sha3')
 const crypto = require('crypto')
-const { User,UserNames, UserPassword } = require('../model/dataModel');
+const { User,UserNames, UserPassword } = require('../../model/dataModel');
 require('dotenv').config()
 const speakeasy = require('speakeasy');
-const {hmacPromise} = require('./Functions/HMAC')
+const {hmacPromise} = require('../Functions/HMAC')
 const { v4: uuidv4 } = require('uuid');
-const redisClient = require('../config/redisConnect');
-const {emailQueue,deletedJobIds} = require('./Functions/mailQueue')
+const redisClient = require('../../config/redisConnect');
+const {emailQueue,deletedJobIds} = require('../Functions/mailQueue')
 
 router.post('/signup', async (req,res)=>{
     const { email, phoneNumber,userPassword,userNames,userAgreeTerms }= req.body
