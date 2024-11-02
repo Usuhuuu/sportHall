@@ -73,13 +73,17 @@ const signup = require("./route/login&register/signup.js")
 const login = require("./route/login&register/login.js")
 const profile = require("./route/profile.js")
 const chatRoute = require("./route/chatRoute.js")
+const appLogin = require('./route/login&register/applogin.js')
+const zaalorder = require('./route/zaal_order.js')
 
 app.use(chatRoute)
 app.use(signup)
 app.use( profile)
 app.use( login)
+app.use(appLogin)
+app.use(zaalorder)
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT
 
 app.listen(PORT, () => {
     console.log(`server is running port ${PORT}`)

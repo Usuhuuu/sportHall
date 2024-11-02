@@ -1,11 +1,9 @@
 const express = require('express');
-const {ZaalSchema, TransactionSchema,Trans_Canceled, User, Group_Chat_Schema} = require('../model/dataModel')
-const router = express.Router()
+const router = express.Router();
 const reserveTimeSlot = require('./Functions/zaal_Time')
-const {authenticateJW} = require('./Functions/auth')
+const {authenticateJWT} = require('./Functions/auth')
 const {emailQueue} = require('./Functions/mailQueue')
-
-
+const {ZaalSchema, TransactionSchema,Trans_Canceled, User, Group_Chat_Schema} = require('../model/dataModel')
 
 router.post('/reserve', async (res,req)=> {
     const SOFT_RESERVATION_TIMEOUT = 10 * 60 * 1000;
@@ -14,7 +12,7 @@ router.post('/reserve', async (res,req)=> {
         const zaal = await ZaalSchema.findOne({zaal_ID: zaalId})
         if(zaal){
             // time slotiig odor tsagaarn shalgaad herev success bol 400 ogno
-            const isReserved = TransactionSchema.findOne({
+            const isReserved =await TransactionSchema.findOne({
                 zaal_ID: zaalId,
                 day: date,
                 start_time:startTime,
@@ -71,18 +69,13 @@ router.post('/reserve', async (res,req)=> {
     
 })
 
-
-
-
-
-
-router.post('/cancelreserve', authenticateJW, async (res,req)=> {
+router.post('/cancelreserve', authenticateJWT, async (req, res) => {
     const {transaction_ID,reason} = req.body
     try{
         const trans_Update = await TransactionSchema.findOneAndUpdate(
             {transaction_ID: transaction_ID, paymentStatus: "success"},
             {$set: {paymentStatus: "canceled"}},
-            { new: true }  // Ensure the updated document is returned
+            { new: true }
         )
         trans_Update ? 
             await Trans_Canceled.create({ transaction_ID: transaction_ID, cancellationReason: reason }) && res.status(200).send("Transaction successfully canceled.") 
@@ -105,9 +98,7 @@ router.post('/cancelreserve', authenticateJW, async (res,req)=> {
     }
 })
 
-
-
-router.post('/zaalburtgel',authenticateJW, async (req,res)=> {
+router.post('/zaalburtgel',authenticateJWT, async (req,res)=> {
     const {user_ID,zaal_location} =req.body
     try{
         const userFind =await User.findOne({user_ID: user_ID,userType: "contractor"})
@@ -129,12 +120,8 @@ router.post('/zaalburtgel',authenticateJW, async (req,res)=> {
     
 })
 
-
-
-
-
 //ProUser tsagaa ehlej oruulj ogno 
-router.post('/basetimeslots',authenticateJW, async (req,res)=> {
+router.post('/basetimeslots',authenticateJWT, async (req,res)=> {
     const {baseTimeSlots,zaalId } = req.body;
     await ZaalSchema.updateOne(
         {zaal_ID: zaalId, zaal_owner: req.user.id},
@@ -146,9 +133,37 @@ router.post('/basetimeslots',authenticateJW, async (req,res)=> {
         return res.status(404).send('Zaal not found or you are not authorized to modify it.');
     }
 })
+
 // const baseTimeSlots = [
 //     { start_time: "10:00", end_time: "12:00" },
 //     { start_time: "12:00", end_time: "14:00" },
 //     { start_time: "14:00", end_time: "16:00" },
 // ];
 
+
+router.get('/timeslotscheck', async(req,res)=> {
+    const { zaalniID, odor } = req.query;
+    console.log(zaalniID, odor)
+    try{
+        const available = await TransactionSchema.find({
+            zaal_ID: zaalniID,
+            day: odor,
+            paymentStatus: { $in: ["success", "pending"] }
+        })
+        if(available.length > 0){
+            const orderedTime = available.map(available =>`${available.startTime}~${available.endTime}`)
+            res.send({message: "not available",available: false, not_possible_time: { orderedTime }})
+        } else{
+             // No transactions found, meaning the time slots are available
+            res.send({
+                message: "Available",
+                available: true,
+                not_possible_time: ""
+            });
+        }
+    }catch(err){
+        console.log(err)
+    }
+})
+
+module.exports = router;
