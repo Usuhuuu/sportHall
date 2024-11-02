@@ -1,4 +1,4 @@
-const {ZaalSchema} = require('../model/dataModel')
+const {ZaalSchema} = require('../../model/dataModel')
 const express = require('express');
 
 const reserveTimeSlot = async (zaalId, startTime, endTime) => {

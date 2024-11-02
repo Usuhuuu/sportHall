@@ -13,8 +13,7 @@ const authenticateJWT = (req, res, next) => {
          //Save decoded user information in request
         req.user = decoded
         //next middleware
-        next()
+        next();
     });
 };
-
 module.exports = {authenticateJWT}
