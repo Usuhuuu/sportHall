@@ -5,6 +5,9 @@ const crypto = require('crypto')
 const jwt = require('jsonwebtoken');
 const {hmacPromise} = require('../Functions/HMAC')
 require('dotenv').config();
+const axios = require('axios')
+const {refresh_auth_jwt} = require('../Functions/auth')
+
 
 router.post('/login', async (req, res) => {
     const {password, email } = req.body;
@@ -17,12 +20,13 @@ router.post('/login', async (req, res) => {
         //Database Salt, password ogson passwordtai tulgah gej retrieve hiij awchirna
         const storedSalt = userFind.userPassword.salt;
         const storedHash = userFind.userPassword.password;
+        
         const hashedPassword = await hmacPromise(password, storedSalt, 2000, 64, 'sha512');
         console.log(hashedPassword)
         if (hashedPassword === storedHash) {  
             const accessToken = jwt.sign(
                 {
-                    userID: userFind.user_ID,  
+                    userID: userFind._id,  
                     email: userFind.email, 
                 },
                 process.env.JWT_ACCESS_SECRET,
@@ -38,7 +42,7 @@ router.post('/login', async (req, res) => {
                 process.env.JWT_REFRESH_SECRET,
                 {
                     algorithm: 'HS256',
-                    expiresIn: '7d'
+                    expiresIn: process.env.JWT_REFRESH_EXPIRES_IN
                 }
             );
             res.status(200).json({ auth: true, accessToken, refreshToken });
@@ -52,19 +56,28 @@ router.post('/login', async (req, res) => {
 });
 
 router.post("/refresh", (req, res) => {
-    const refreshToken = req.headers["refresh"];
-    if (refreshToken == null) return res.status(401).json({auth: false, message: 'User must Login'});
+    const refreshToken = req.headers.refresh;
+    try{
+    if (refreshToken == null) {
+        return res.status(401).json({authAccess: false, message: 'User must Login again'});
+    }
     jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET, (err, user) => {
         if (err) return res.sendStatus(403);
         const accessToken = jwt.sign(
-            { userID: user.userID }, // Make sure to use user.userID
+            { userID: user.userID }, 
             process.env.JWT_ACCESS_SECRET,
             {
-                expiresIn: "1h",
+                expiresIn: process.env.JWT_EXPIRES_IN,
             }
         );
-        res.status(200).json({ accessToken });
+        console.log("new access token", accessToken)
+        res.json({ authAccess:true, accessToken });
+
     });
+    }catch(err){
+        res.status(500)
+    }
+    
 });
 
 module.exports = router;
