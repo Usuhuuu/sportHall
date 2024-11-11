@@ -4,7 +4,7 @@ const {Group_Chat_Schema} = require('../../model/dataModel')
 const setupWebSocket= (server) => {
     const io = new Server(server)
     io.on("connection", (socket) => {
-        console.log("User Connected ", socket.id)
+        socket.emit("User Connected ", socket.id)
         socket.on('joinGroup',async ({ groupId, userId }) => {
             // member uguig shalgan
             const isMember = await Group_Chat_Schema.findOne(groupId);
@@ -13,9 +13,9 @@ const setupWebSocket= (server) => {
                 return;
             }
             socket.join(groupId);
-            console.log(`User ${userId} joined group: ${groupId}`);;
+            socket.emit(`User ${userId} joined group: ${groupId}`);;
             // Load chat history from MongoDB and send to the user
-            const messages = group.messages.sort((a, b) => a.timestamp - b.timestamp);
+            const messages = isMember.messages.sort((a, b) => a.timestamp - b.timestamp);
             socket.emit('chatHistory', messages);
 
             const MAX_MESSAGE_LENGTH = 2000;

@@ -11,7 +11,7 @@ const redisClient = require('../../config/redisConnect');
 const {emailQueue,deletedJobIds} = require('../Functions/mailQueue')
 
 router.post('/signup', async (req,res)=>{
-    const { email, phoneNumber,userPassword,userNames,userAgreeTerms }= req.body
+    const { email, phoneNumber,userPassword,userNames,userAgreeTerms, userType }= req.body
     try{
         const userFind = await User.findOne({email: email})
         if(userFind) {
@@ -37,7 +37,8 @@ router.post('/signup', async (req,res)=>{
             userNames:{
                 firstName:userNames.firstName,
                 lastName: userNames.lastName
-            }
+            },
+            userType:userType
 
         })
         res.status(200).json({ message: 'User created successfully!' });

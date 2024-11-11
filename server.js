@@ -10,10 +10,17 @@ const redisClient = require('./config/redisConnect.js'); //verification code sto
 const rateLimit = require('express-rate-limit'); //limit rate
 const setupWebSocket = require('./route/Functions/chat.js')
 const http = require('http');
+const sentry = require('@sentry/node')
+
 
 //mongodb & redis Connections
 connectDB();
     //middleWare 
+
+sentry.init({
+    dsn: "https://f6cb6ea23a5763ab60f0d8c50bae3d7e@o4508263161856000.ingest.us.sentry.io/4508278007726080",
+    tracesSampler: 1.0
+})
 
 //HSTS
 app.use(helmet.hsts({
@@ -61,7 +68,7 @@ setupWebSocket(server);
 // rate Limiter
 const limiter = rateLimit({
     windowMs: 15*60*1000,
-    max:100,
+    max:50,
     message: 'Too many requests from this IP, please try again later'
 })
 
@@ -85,6 +92,9 @@ app.use(zaalorder)
 
 const PORT = process.env.PORT
 
+
+
 app.listen(PORT, () => {
     console.log(`server is running port ${PORT}`)
 })
+app.use(sentry.Handlers.errorHandler());

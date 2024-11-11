@@ -6,112 +6,175 @@ const { User } = require('../../model/dataModel');
 const jwt = require('jsonwebtoken');
 const { google } = require('googleapis');
 
-router.post("/auth/facebook",async (req,res)=> {
-    const { accessToken:userAccessToken } = req.body;
-    try{
+router.post("/auth/facebook", async (req, res) => {
+    const { accessToken: userAccessToken } = req.body;
+    try {
         const userDataResponse = await axios.get('https://graph.facebook.com/me', {
             params: {
-              access_token: userAccessToken,
-              fields: 'id,name,email'
+                access_token: userAccessToken,
+                fields: 'id,name,email'
             }
         });
-        console.log(userDataResponse.data)
-        if(!userDataResponse && userDataResponse.data.email ) 
-            return res.status(400).json({ message: 'Invalid Facebook token' });
-        const user= userDataResponse.data;
-        const findUser = User.findOne(user.email)
-        if(!findUser) {
-            try{
-                const userCreate = new User({
-                    email: fbUserData.email,
-                    name: fbUserData.name,
-                    facebookID: fbUserData.id, 
-                    userPassword: null 
-                })
-                await userCreate.save();
-            }catch(err){
-                console.log("Facebook login DIdnt saved on database")
+        if (!userDataResponse.data || !userDataResponse.data.email) {
+            return res.status(400).json({ message: 'Invalid Facebook token or no email provided' });
+        }
+        const user = userDataResponse.data;
+        const [firstName, lastName = ''] = user.name.split(' ');
+
+        let findUser = await User.findOne({ email: user.email });
+        if (!findUser) {
+            try {
+                findUser = await User.create({
+                    email: user.email,
+                    userNames: {
+                        firstName,
+                        lastName
+                    },
+                    third_party_user_ID: [{
+                        provider: "facebook",
+                        provided_ID: user.id
+                    }],
+                    userAgreeTerms: {
+                        agree_terms: true,
+                        agree_privacy: true
+                    }
+                });
+            } catch (err) {
+                console.error("Facebook login: User creation failed", err);
+                return res.status(500).json({ message: 'User creation failed' });
+            }
+        } else{
+            try {
+                await User.updateOne(
+                    { email: user.email },
+                    {
+                        $addToSet: {
+                            third_party_user_ID: {
+                                provider: "facebook",
+                                provided_ID: user.id
+                            }
+                        }
+                    }
+                );
+            } catch (err) {
+                console.error("Failed to update third_party_user_ID", err);
+                return res.status(500).json({ message: 'User update failed' });
             }
         }
         const accessToken = jwt.sign({
-            userID: user.id,
+            userID: findUser._id,
             email: findUser.email
-        },process.env.JWT_ACCESS_SECRET,{
+        }, process.env.JWT_ACCESS_SECRET, {
             algorithm: 'HS256',
             expiresIn: process.env.JWT_EXPIRES_IN
-        })
+        });
+
         const refreshToken = jwt.sign({
             userID: findUser._id,
-        },process.env.JWT_REFRESH_SECRET,{
+        }, process.env.JWT_REFRESH_SECRET, {
             algorithm: 'HS256',
-            expiresIn: '30d'
-        })
-        
-        res.status(200).json({ auth: true, accessToken, refreshToken, message:"successfully logined with facebook"})
-    }catch(err){
-        console.log(err)
-        res.status(err.status).json({ error: 'Facebook authentication failed' });
+            expiresIn: process.env.JWT_REFRESH_EXPIRES_IN
+        });
+        console.log(accessToken, "\n", refreshToken);
+        res.status(200).json({ auth: true, accessToken, refreshToken, message: "Successfully logged in with Facebook" });
+    } catch (err) {
+        console.error("Facebook authentication failed", err);
+        res.status(500).json({ error: 'Facebook authentication failed' });
     }
-})
+});
 
-
-router.post("/auth/google",async (req,res)=> {
+router.post("/auth/google", async (req, res) => {
     const { accessToken: userAccessToken } = req.body;
-    try{
+    try {
         const oauth2Client = new google.auth.OAuth2();
         oauth2Client.setCredentials({ access_token: userAccessToken });
+
         const peopleService = google.people({ version: 'v1', auth: oauth2Client });
         const userDataResponse = await peopleService.people.get({
             resourceName: 'people/me',
             personFields: 'names,emailAddresses',
         });
-        if(userDataResponse.code == 403 || userDataResponse.status == "PERMISSION_DENIED" ){
-            console.log("sda on google")
+
+        if (!userDataResponse.data || !userDataResponse.data.emailAddresses) {
+            return res.status(400).json({ message: 'Invalid Google token' });
         }
-        if(!userDataResponse.data || !userDataResponse.data.emailAddresses ) return res.status(400).json({ message: 'Invalid Facebook token' });
+
         const user = userDataResponse.data;
-        const email = user.emailAddresses[0]?.value
-        const givenName = user.names[0]?.givenName
-        const familyName = user.names[0]?.familyName
-        const googleId = user.resourceName.split('/')[1]
-        console.log(googleId)
-        const findUser = User.findOne(user.email)
-        if(!findUser) {
-            try{
-                const userCreate = new User({
+        const email = user.emailAddresses[0]?.value;
+        const givenName = user.names[0]?.givenName || '';
+        const familyName = user.names[0]?.familyName || '';
+        const googleId = user.resourceName.split('/')[1];
+
+        let findUser = await User.findOne({ email });
+
+        if (!findUser) {
+            try {
+                findUser = await User.create({
                     email: email,
-                    userNames:{
-                        firstName:givenName,
+                    userNames: {
+                        firstName: givenName,
                         lastName: familyName
                     },
-                    googleId: googleId, 
-                    userPassword: null 
-                })
-                await userCreate.save();
-            }catch(err){
-                console.log("Facebook login DIdnt saved on database")
+                    userAgreeTerms: {
+                        agree_terms: true,
+                        agree_privacy: true
+                    },
+                    third_party_user_ID: [{
+                        provider: "google",
+                        provided_ID: googleId
+                    }]
+                });
+            } catch (err) {
+                console.error("Google login: User creation failed", err);
+                return res.status(500).json({ message: 'User creation failed' });
+            }
+        } else {
+            try {
+                await User.updateOne(
+                    { email: email },
+                    {
+                        $addToSet: {
+                            third_party_user_ID: {
+                                provider: "google",
+                                provided_ID: googleId
+                            }
+                        }
+                    }
+                );
+            } catch (err) {
+                console.error("Failed to update third_party_user_ID", err);
+                return res.status(500).json({ message: 'User update failed' });
             }
         }
+        const user_ID = findUser._id
         const accessTokens = jwt.sign({
-            userID: user.id,
+            userID: user_ID,
             email: email
-        },process.env.JWT_ACCESS_SECRET,{
+        }, process.env.JWT_ACCESS_SECRET, {
             algorithm: 'HS256',
             expiresIn: process.env.JWT_EXPIRES_IN
-        })
+        });
+
         const refreshToken = jwt.sign({
-            email: email,
-        },process.env.JWT_REFRESH_SECRET,{
+            userID_: user_ID
+        }, process.env.JWT_REFRESH_SECRET, {
             algorithm: 'HS256',
-            expiresIn: '30d'
-        })
-        res.status(200).json({ auth: true, accessTokens, refreshToken, message:"successfully logined with facebook"})
-    }catch(err){
-        console.log(err)
+            expiresIn: process.env.JWT_REFRESH_EXPIRES_IN
+        });
+
+        console.log(accessTokens, "\n", refreshToken);
+
+        res.status(200).json({
+            auth: true,
+            accessTokens,
+            refreshToken,
+            message: "Successfully logged in with Google"
+        });
+    } catch (err) {
+        console.error(err);
         const statusCode = err.response?.status || 500;
         res.status(statusCode).json({ error: 'Google authentication failed', details: err.message });
     }
-})
-
+});
 
 module.exports = router 
