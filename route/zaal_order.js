@@ -13,13 +13,25 @@ router.post('/reserve', async (req,res)=> {
         if(zaal){
             // time slotiig odor tsagaarn shalgaad herev success bol 400 ogno
             const isReserved =await TransactionSchema.findOne({
-                _id: zaalId,
+                zaal_ID: zaalId,
                 day: date,
                 start_time:startTime,
                 end_time: endTime,
-                paymentStatus: 'success' || 'pending'
+                "paying_people.payment_status": { $in: ['Completed', 'Pending'] }
             })
-            if(isReserved) return res.status(400).json( {available: false, message: 'Time slot is already reserved.'});
+            if(isReserved){
+                if(isReserved.paying_people.payment_status == 'Completed'){
+                    return res.status(400).json({
+                        available: false,
+                        message: 'Time slot is already reserved.',
+                      });
+                }else if(isReserved.paying_people.payment_status == "Pending"){
+                    return res.status(200).json({
+                        available: true,
+                        message: 'Time slot is available to join.',
+                    });
+                }
+            }
             //payment heseg orood success hivel update hiin
             const payment = true
             // {
@@ -72,6 +84,7 @@ router.post('/reserve', async (req,res)=> {
         }else {
             console.log(zaal)
         }
+        
     }catch(err){
         console.log(err)
         return res.status(500).send("error on reserve", err)
@@ -162,17 +175,29 @@ router.get('/timeslotscheck', async(req,res)=> {
     const { zaalniID, odor } = req.query;
     console.log(zaalniID, odor)
     try{
-        const available = await TransactionSchema.find({
+        const available =await TransactionSchema.find({
             zaal_ID: zaalniID,
             day: odor,
-            paymentStatus: { $in: ["success", "pending"] }
+            "paying_people.payment_status": { $in: ['Completed', 'Pending'] }
         })
         if(available.length > 0){
             const orderedTime = available.map(available =>`${available.startTime}~${available.endTime}`)
-            res.send({message: "not available",available: false, not_possible_time: { orderedTime }})
-        } else{
-             // No transactions found, meaning the time slots are available
-            res.send({
+            if(available.paying_people.payment_status == 'Completed'){
+                return res.json({
+                    available: false,
+                    message: 'Time slot is already reserved.',
+                    not_possible_time:{orderedTime}
+                  });
+            }else if(available.paying_people.payment_status == "Pending"){
+                return res.json({
+                    available: true,
+                    message: 'Time slot is available to join.',
+                    not_possible_time:{orderedTime}
+                });
+            }
+        }else{
+            // No transactions found, meaning the time slots are available
+            res.json({
                 message: "Available",
                 available: true,
                 not_possible_time: ""

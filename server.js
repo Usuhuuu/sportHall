@@ -9,33 +9,36 @@ const mongoSanitize = require('express-mongo-sanitize'); //noSQl injection
 const redisClient = require('./config/redisConnect.js'); //verification code storage 
 const rateLimit = require('express-rate-limit'); //limit rate
 const setupWebSocket = require('./route/Functions/chat.js')
-const http = require('http');
+const https = require('node:https');
+const fs = require('node:fs');
 const sentry = require('@sentry/node')
-
 
 //mongodb & redis Connections
 connectDB();
     //middleWare 
 
+
+
+// sentry init 
 sentry.init({
     dsn: "https://f6cb6ea23a5763ab60f0d8c50bae3d7e@o4508263161856000.ingest.us.sentry.io/4508278007726080",
     tracesSampler: 1.0
 })
-
-//HSTS
+app.set('trust proxy', 1);
+//HSTS secure 
 app.use(helmet.hsts({
     maxAge:31536000,//seconds equals one year.
     includeSubDomains: true,
     preload:true //http gsen baihiig automataar https bolgon
 }))
-//
 
 //CORS
 const allowedOrigins = [
-    "https://192.168.0.6:8081",
-    "http://exp://192.168.0.6:8081",
-    "exp://192.168.0.6:8081"
-];
+    "http://localhost:8081",           
+    "https://localhost:8081",
+    "exp://192.168.0.20:8081",         
+    "exp://192.168.0.20:8081",         
+  ];
 const corsOptions = {
     origin: (origin, callback) => {
         if (!origin || allowedOrigins.includes(origin)) {
@@ -44,12 +47,12 @@ const corsOptions = {
             callback(new Error("Not allowed by CORS"));
         }
     },
-    credentials: true // Allow credentials (cookies, authorization headers, etc.)
+    credentials: true, // Allow credentials (cookies, authorization headers, etc.)
+    methods: ["GET", "POST", "PUT", "DELETE"], 
 };
 
 app.use(cors(corsOptions));
 app.use(express.json());
-//
 
 // noSQL injection prevent
 app.use(bodyParser.urlencoded({extended: true}))
@@ -58,21 +61,29 @@ app.use(mongoSanitize({
     replaceWith: '_',
     allowDots: false
 }))
-//
-
-// Web Socket init
-const server = http.createServer(app);
-setupWebSocket(server);
-//
 
 // rate Limiter
-const limiter = rateLimit({
-    windowMs: 15*60*1000,
-    max:50,
-    message: 'Too many requests from this IP, please try again later'
-})
+let requestCounts = {}
 
-app.use(limiter);
+const limiter = rateLimit({
+    windowMs: 60*1000,
+    max:100,
+    message: 'Too many requests from this IP, please try again later',
+    skipFailedRequests: false, 
+    skipSuccessfulRequests: false,
+    handler: (req, res) => {
+        res.status(429).send('Too many requests, please try again later.');
+    }
+})
+app.use(limiter)
+app.use((req, res, next) => {
+    const ip = req.ip;
+    requestCounts[ip] = (requestCounts[ip] || 0) + 1;
+    console.log(`IP ${ip} has made ${requestCounts[ip]} requests`);
+    next(); // Move to the next middleware (rate limiter)
+});
+
+
 //
 
 //Router define
@@ -93,8 +104,17 @@ app.use(zaalorder)
 const PORT = process.env.PORT
 
 
+// https init 
+const httpsOptions = {
+    key: fs.readFileSync(`${process.env.PRIVATE_KEY}`),
+    cert: fs.readFileSync(`${process.env.CERTIFICATE_PATH}`),
+}
+const httpsServer = https.createServer(httpsOptions, app)   
 
-app.listen(PORT, () => {
-    console.log(`server is running port ${PORT}`)
+setupWebSocket(httpsServer)
+
+const https_port = process.env.HTTPS_PORT || 3443
+httpsServer.listen(https_port,() => {
+    console.log(`https running on ${process.env.HTTPS_PORT}`)
 })
-app.use(sentry.Handlers.errorHandler());
+

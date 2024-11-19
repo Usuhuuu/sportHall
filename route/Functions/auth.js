@@ -12,14 +12,12 @@ const authenticateJWT = async (req, res, next) => {
     jwt.verify(token, process.env.JWT_ACCESS_SECRET, (err, decoded) => {
         if (err) {
             // Return a single response on error
-            return res.json({ message: "Invalid accessToken", authAccess: false });
+            return res.json({ message: "Invalid accessToken", auth: false });
         }
-
-        if (!decoded || !decoded.userID) {
+        if (!decoded || (!decoded.userID && !decoded.email)) {
             // Return if userID is missing in decoded token
             return res.status(400).json({ message: "User ID is missing in the token" });
         }
-
         // Save decoded user information in request for subsequent middleware
         req.user = decoded;
 
