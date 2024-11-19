@@ -74,11 +74,6 @@ const transactionSchema  = new Schema({
         required: true,
         ref: "ZaalSchema"
     },
-    user_ID: {
-        type: Schema.Types.ObjectId,
-        required: true,
-        ref: "User"
-    },
     day: {
         type: String, 
         required: true
@@ -91,15 +86,45 @@ const transactionSchema  = new Schema({
         type: String,
         required: true
     },
-    amountPaid: {
-        type: Number,
-        required: true
+    num_players:{
+        type:Number,
+        required:true
     },
-    paymentStatus: {
-        type: String,
-        enum: ['pending', 'success','failed'],
-        default: 'failed'
+    current_player:{
+        type:Number,
+        required:true
+    },  
+    total_amount:{
+        type:Number,
+        required:true
     },
+    paying_people:[{ 
+        _id:false,
+        paymentID: {
+            type:Schema.Types.ObjectId,
+        },
+        userID: {
+            type: Schema.Types.ObjectId,
+            ref:"User",
+        },
+        amountPaid: {
+            type: Number,
+            required: true
+        },
+        payment_status:{
+            type:String,
+            enum:["Pending", "Completed", "failed","Expired"],
+            default: "Pending"
+        },
+        timestamp:{
+            type:Date,
+            default: Date.now
+        },
+        refund_status:{
+            type:String,
+            enum:["none","requested", "completed"]
+        }
+}]
     
 }, {
     timestamps: true

@@ -6,7 +6,8 @@ const jwt = require('jsonwebtoken');
 const {hmacPromise} = require('../Functions/HMAC')
 require('dotenv').config();
 const axios = require('axios')
-const {refresh_auth_jwt} = require('../Functions/auth')
+const {refresh_auth_jwt} = require('../Functions/auth');
+const { gmail } = require('googleapis/build/src/apis/gmail');
 
 
 router.post('/login', async (req, res) => {
@@ -61,16 +62,18 @@ router.post("/refresh", (req, res) => {
     if (refreshToken == null) {
         return res.status(401).json({authAccess: false, message: 'User must Login again'});
     }
-    jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET, (err, user) => {
+    jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET,async (err, user) => {
         if (err) return res.sendStatus(403);
-        const accessToken = jwt.sign(
-            { userID: user.userID }, 
+        const userFind = await User.findOne({_id:user.userID})
+        const accessToken = jwt.sign({ 
+            userID: user.userID,
+            email:userFind.email 
+        }, 
             process.env.JWT_ACCESS_SECRET,
             {
                 expiresIn: process.env.JWT_EXPIRES_IN,
             }
         );
-        console.log("new access token", accessToken)
         res.json({ authAccess:true, accessToken });
 
     });
