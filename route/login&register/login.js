@@ -1,34 +1,36 @@
 const express = require('express');
 const router = express.Router();
-const { User,UserPassword } = require('../../model/dataModel');
+const { User, UserPassword } = require('../../model/dataModel');
 const crypto = require('crypto')
 const jwt = require('jsonwebtoken');
-const {hmacPromise} = require('../Functions/HMAC')
+const { secure_password_function, verify_password_promise } = require('../Functions/PBE')
 require('dotenv').config();
 const axios = require('axios')
-const {refresh_auth_jwt} = require('../Functions/auth');
+const { refresh_auth_jwt } = require('../Functions/auth');
 const { gmail } = require('googleapis/build/src/apis/gmail');
+const argon2 = require('argon2');
 
 
 router.post('/login', async (req, res) => {
-    const {password, email } = req.body;
-    console.log(`Received login request: email=${email}`);
+    const { email, userPassword } = req.body;
     try {
-        const userFind = await User.findOne({ email: email });
+        let userFind
+        if (email.includes('@')) {
+            userFind = await User.findOne({ email: email });
+        } else {
+            userFind = await User.findOne({ unique_user_ID: email });
+        }
         if (!userFind) {
             return res.status(401).json({ message: "User does not exist" });
         }
         //Database Salt, password ogson passwordtai tulgah gej retrieve hiij awchirna
-        const storedSalt = userFind.userPassword.salt;
-        const storedHash = userFind.userPassword.password;
-        
-        const hashedPassword = await hmacPromise(password, storedSalt, 2000, 64, 'sha512');
-        console.log(hashedPassword)
-        if (hashedPassword === storedHash) {  
+        const storedHash = userFind.userPassword;
+        const isValid = await argon2.verify(storedHash, userPassword);
+        if (isValid) {
             const accessToken = jwt.sign(
                 {
-                    userID: userFind._id,  
-                    email: userFind.email, 
+                    userID: userFind._id,
+                    unique_user_ID: userFind.unique_user_ID,
                 },
                 process.env.JWT_ACCESS_SECRET,
                 {
@@ -38,7 +40,7 @@ router.post('/login', async (req, res) => {
             );
             const refreshToken = jwt.sign(
                 {
-                    userID: userFind._id, 
+                    userID: userFind._id,
                 },
                 process.env.JWT_REFRESH_SECRET,
                 {
@@ -58,29 +60,29 @@ router.post('/login', async (req, res) => {
 
 router.post("/refresh", (req, res) => {
     const refreshToken = req.headers.refresh;
-    try{
-    if (refreshToken == null) {
-        return res.status(401).json({authAccess: false, message: 'User must Login again'});
-    }
-    jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET,async (err, user) => {
-        if (err) return res.sendStatus(403);
-        const userFind = await User.findOne({_id:user.userID})
-        const accessToken = jwt.sign({ 
-            userID: user.userID,
-            email:userFind.email 
-        }, 
-            process.env.JWT_ACCESS_SECRET,
-            {
-                expiresIn: process.env.JWT_EXPIRES_IN,
-            }
-        );
-        res.json({ authAccess:true, accessToken });
+    try {
+        if (refreshToken == null) {
+            return res.status(401).json({ authAccess: false, message: 'User must Login again' });
+        }
+        jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET, async (err, user) => {
+            if (err) return res.sendStatus(403);
+            const userFind = await User.findOne({ _id: user.userID })
+            const accessToken = jwt.sign({
+                userID: user.userID,
+                email: userFind.email
+            },
+                process.env.JWT_ACCESS_SECRET,
+                {
+                    expiresIn: process.env.JWT_EXPIRES_IN,
+                }
+            );
+            res.json({ authAccess: true, accessToken });
 
-    });
-    }catch(err){
+        });
+    } catch (err) {
         res.status(500)
     }
-    
+
 });
 
 module.exports = router;

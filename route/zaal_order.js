@@ -1,31 +1,32 @@
 const express = require('express');
 const router = express.Router();
 const reserveTimeSlot = require('./Functions/zaal_Time')
-const {authenticateJWT} = require('./Functions/auth')
-const {emailQueue} = require('./Functions/mailQueue')
-const {ZaalSchema, TransactionSchema,Trans_Canceled, User, Group_Chat_Schema} = require('../model/dataModel')
+const { authenticateJWT } = require('./Functions/auth')
+const { emailQueue } = require('./Functions/mailQueue')
+const { ZaalSchema, TransactionSchema, Trans_Canceled, User, Group_Chat_Schema } = require('../model/dataModel')
 
-router.post('/reserve', async (req,res)=> {
+router.post('/reserve', authenticateJWT, async (req, res) => {
     const SOFT_RESERVATION_TIMEOUT = 10 * 60 * 1000;
-    const { zaalId, date, startTime, endTime,user_ID } = req.body;
-    try{
-        const zaal = await ZaalSchema.findOne({_id: zaalId})
-        if(zaal){
+    const { zaalId, date, startTime, endTime, num_players, current_player, total_amount } = req.body;
+    try {
+        const decodedUserID = req.user.userID
+        const zaal = await ZaalSchema.findOne({ _id: zaalId })
+        if (zaal) {
             // time slotiig odor tsagaarn shalgaad herev success bol 400 ogno
-            const isReserved =await TransactionSchema.findOne({
+            const isReserved = await TransactionSchema.findOne({
                 zaal_ID: zaalId,
                 day: date,
-                start_time:startTime,
+                start_time: startTime,
                 end_time: endTime,
                 "paying_people.payment_status": { $in: ['Completed', 'Pending'] }
             })
-            if(isReserved){
-                if(isReserved.paying_people.payment_status == 'Completed'){
+            if (isReserved) {
+                if (isReserved.paying_people.payment_status == 'Completed') {
                     return res.status(400).json({
                         available: false,
                         message: 'Time slot is already reserved.',
-                      });
-                }else if(isReserved.paying_people.payment_status == "Pending"){
+                    });
+                } else if (isReserved.paying_people.payment_status == "Pending") {
                     return res.status(200).json({
                         available: true,
                         message: 'Time slot is available to join.',
@@ -39,117 +40,128 @@ router.post('/reserve', async (req,res)=> {
             //     userId: user_ID,
             //     callbackUrl: `${process.env.BASE_URL}/api/payment/callback`,
             // }
-            let amountPaid =1000
-            
-            if(payment){
-                try{
+            let amountPaid = 1000
+
+            if (payment) {
+                try {
                     const reserving = await TransactionSchema.create(
                         {
                             zaal_ID: zaalId,
-                            user_ID: user_ID,
                             day: date,
-                            amountPaid: amountPaid || "10000",
-                            paymentStatus: 'success',
-                            start_time:startTime,
-                            end_time:endTime,
+                            start_time: startTime,
+                            end_time: endTime,
+                            num_players: num_players,
+                            current_player: current_player,
+                            total_amount: total_amount,
+                            paying_people: [
+                                {
+                                    user_ID: decodedUserID,
+                                    amountPaid: amountPaid || "10000",
+                                    num_players,
+                                    payment_status: "Completed",
+                                }
+                            ]
+
                         },
-                    ) 
-                    if(reserving){
-                        try{
+                    )
+                    if (reserving) {
+                        try {
                             const newGroup = await Group_Chat_Schema.create({
-                                members:[user_ID],
-                                messages:[],
+                                members: [decodedUserID],
+                                messages: [],
                                 transaction_ID: reserving._id
                             })
                             const groupID = newGroup.groupId
+                            const user = User.findById(decodedUserID)
                             await emailQueue.add('reservationEmail', {
                                 fromMail: process.env.GMAIL_USER,
-                                toMail: email,
+                                toMail: user.email,
                                 subject: "Successfully Reserved",
-                                text: `${date,'T'+ startTime," ",endTime}`
+                                text: `${date, 'T' + startTime, " ", endTime}`
                             })
                             return res.status(200).send('Successfully Reserved Sda')
-                        }catch(err){
+                        } catch (err) {
                             console.log('create groupchat and send email')
                         }
                     }
-                } catch(err){
+                } catch (err) {
                     res.status(500).send("failed to reserve")
                 }
-                
+
             } else {
                 return res.status(400).send('Failed to pay');
             }
-            res.status(200).send({message: `Successfully reserved on ${date,'T'+ startTime," ",endTime}`, available: false})
-        }else {
+            res.status(200).send({ message: `Successfully reserved on ${date, 'T' + startTime, " ", endTime}`, available: true })
+        } else {
             console.log(zaal)
         }
-        
-    }catch(err){
+
+    } catch (err) {
         console.log(err)
         return res.status(500).send("error on reserve", err)
     }
-    
+
 })
 
-router.post('/cancelreserve', authenticateJWT, async (req, res) => {
-    const {transaction_ID,reason} = req.body
-    try{
+router.post('/auth/cancelreserve', authenticateJWT, async (req, res) => {
+    const { transaction_ID, reason } = req.body
+    try {
         const trans_Update = await TransactionSchema.findOneAndUpdate(
-            {_id: transaction_ID, paymentStatus: "aborted"},
-            {$set: {paymentStatus: "failed"}},
+            { _id: transaction_ID, paymentStatus: "aborted" },
+            { $set: { paymentStatus: "failed" } },
             { new: true }
         )
-        trans_Update ? await Trans_Canceled.create({ transaction_ID: transaction_ID,refund_status: "pending", cancellationReason: reason }) && res.status(200).json({message: "Transaction successfully canceled.", transaction_status: 'Canceled'}) 
-            : res.status(400).json({message:"Transaction does not exist or is not successful."});
+        trans_Update ? await Trans_Canceled.create({ transaction_ID: transaction_ID, refund_status: "pending", cancellationReason: reason }) && res.status(200).json({ message: "Transaction successfully canceled.", transaction_status: 'Canceled' })
+            : res.status(400).json({ message: "Transaction does not exist or is not successful." });
 
         await emailQueue.add('cancellationEmail', {
             fromMail: process.env.GMAIL_USER,
-            toMail: trans_Update.user_ID.email, 
+            toMail: trans_Update.user_ID.email,
             subject: "Reservation Canceled",
             text: `Your reservation on ${trans_Update.day} has been canceled.`
         });
         return res.status(200).send("Transaction successfully canceled.");
-    }catch(err){
+    } catch (err) {
         console.error(err);
         return res.status(500).send('error transaction cancel');
     }
 })
-router.post('/zaalburtgel',authenticateJWT, async (req,res)=> {
-    const {zaal_location, zaal_type,baseTimeSlots} =req.body
-    try{
-        const decodedUserID=req.user.userID
-        const userFind =await User.findOne({user_ID: decodedUserID, userType: "contractor"})
-        if(!userFind) return res.status(400).send("User Doesnt exist")
-        try{
+router.post('/auth/zaalburtgel', authenticateJWT, async (req, res) => {
+    const { zaal_location, zaal_type, baseTimeSlots } = req.body
+    try {
+        const decodedUserID = req.user.userID
+        console.log(decodedUserID)
+        const userFind = await User.findOne({ _id: decodedUserID, userType: "contractor" })
+        if (!userFind) return res.status(400).send("User Doesnt exist")
+        try {
             const zaalShaasn = await ZaalSchema.create({
-                zaal_types:zaal_type,
+                zaal_types: zaal_type,
                 zaal_location: zaal_location,
                 zaal_owner: userFind._id,
                 base_time_slots: baseTimeSlots
             })
-            if(zaalShaasn){
+            if (zaalShaasn) {
                 console.log(zaalShaasn)
-                res.status(200).json({message:"zaal burtguulse "})
+                res.status(200).json({ message: "zaal burtguulse " })
             }
-        }catch(err){
+        } catch (err) {
             console.log(err)
-            res.status(500).json({message:"error on zaal burtgel"})
+            res.status(500).json({ message: "error on zaal burtgel" })
         }
-    }catch(err){
+    } catch (err) {
         res.status(500).send('Server Error')
         console.log(err)
     }
 })
 
 //ProUser tsagaa ehlej oruulj ogno 
-router.post('/basetimeslots',authenticateJWT, async (req,res)=> {
-    const {baseTimeSlots,zaalId, } = req.body;
-    try{
+router.post('/auth/basetimeslots', authenticateJWT, async (req, res) => {
+    const { baseTimeSlots, zaalId, } = req.body;
+    try {
         // ene decodedUserID n auth file aas decoted userID awj bn 
         const decodedUserID = req.user.userID
         const result = await ZaalSchema.updateOne(
-            {zaal_ID: zaalId, zaal_owner: decodedUserID},
+            { zaal_ID: zaalId, zaal_owner: decodedUserID },
             { $set: { base_time_slots: baseTimeSlots } }
         )
         console.log(result)
@@ -158,10 +170,10 @@ router.post('/basetimeslots',authenticateJWT, async (req,res)=> {
         } else {
             return res.status(404).send('Zaal not found or you are not authorized to modify it.');
         }
-    }catch(err){
+    } catch (err) {
         console.log(err)
     }
-    
+
 })
 
 // const baseTimeSlots = [
@@ -171,31 +183,34 @@ router.post('/basetimeslots',authenticateJWT, async (req,res)=> {
 // ];
 
 
-router.get('/timeslotscheck', async(req,res)=> {
+router.get('/timeslotscheck', async (req, res) => {
     const { zaalniID, odor } = req.query;
     console.log(zaalniID, odor)
-    try{
-        const available =await TransactionSchema.find({
+    try {
+        const available = await TransactionSchema.find({
             zaal_ID: zaalniID,
             day: odor,
-            "paying_people.payment_status": { $in: ['Completed', 'Pending'] }
+            paying_people: {
+                $elemMatch: { payment_status: { $in: ['Completed', 'Pending'] } }
+            }
         })
-        if(available.length > 0){
-            const orderedTime = available.map(available =>`${available.startTime}~${available.endTime}`)
-            if(available.paying_people.payment_status == 'Completed'){
+        console.log(JSON.stringify(available, null, 2));
+        if (available.length > 0) {
+            const orderedTime = available.map(available => `${available.start_time}~${available.end_time}`)
+            if (available.paying_people.payment_status == 'Completed') {
                 return res.json({
                     available: false,
                     message: 'Time slot is already reserved.',
-                    not_possible_time:{orderedTime}
-                  });
-            }else if(available.paying_people.payment_status == "Pending"){
+                    not_possible_time: { orderedTime }
+                });
+            } else if (available.paying_people.payment_status == "Pending") {
                 return res.json({
                     available: true,
                     message: 'Time slot is available to join.',
-                    not_possible_time:{orderedTime}
+                    not_possible_time: { orderedTime }
                 });
             }
-        }else{
+        } else {
             // No transactions found, meaning the time slots are available
             res.json({
                 message: "Available",
@@ -203,9 +218,41 @@ router.get('/timeslotscheck', async(req,res)=> {
                 not_possible_time: ""
             });
         }
-    }catch(err){
+    } catch (err) {
         console.log(err)
     }
 })
+
+router.post('/auth/zaal_review_update', authenticateJWT, async (req, res) => {
+    const { message, zaal_ID, rating } = req.body
+    console.log(message, zaal_ID, rating)
+    try {
+        const decodedUserID = req.user.userID
+        if (!decodedUserID) res.json({ message: "User not founded", auth: false })
+        const zaal_review = await ZaalSchema.findOneAndUpdate({ _id: zaal_ID }, {
+            $push: {
+                reviews: {
+                    user_ID: decodedUserID,
+                    review_message: message,
+                    rating: rating
+                }
+            }
+        })
+        console.log(zaal_review)
+        if (zaal_review) {
+            res.status(200).json({ message: "review added" })
+        }
+    } catch (err) {
+        console.log(err)
+    }
+})
+
+
+
+
+
+
+
+
 
 module.exports = router;

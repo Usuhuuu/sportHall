@@ -4,18 +4,23 @@ const { Schema } = mongoose;
 
 // User Schema
 const userSchema = new Schema({
+    unique_user_ID: {
+        type: String,
+        required: true,
+        unique: true
+    },
     email: {
         type: String,
         required: true,
-        unique: true   
+        unique: true
     },
     phoneNumber: {
-        type: String,   
+        type: String,
         required: false
     },
     userType: {
         type: String,
-        enum: ['admin', 'user', 'contractor'], 
+        enum: ['admin', 'user', 'contractor'],
         default: 'user',
     },
     // User subDocuments
@@ -30,15 +35,13 @@ const userSchema = new Schema({
         }
     },
     userPassword: {
-        password: {
-            type: String,
-            required: false,
-            minlength: 8
-        },
-        salt: {
-            type: String,
-            required: false
-        }
+        type: String,
+        required: false,
+        minlength: 8
+    },
+    userImage: {
+        type: String,
+        required: false
     },
     userAgreeTerms: {
         agree_terms: {
@@ -50,24 +53,56 @@ const userSchema = new Schema({
             required: true
         }
     },
-    third_party_user_ID:[{
-        _id:false,
-        provider:{
-            type:String,
-            required:false
+    third_party_user_ID: [{
+        _id: false,
+        provider: {
+            type: String,
+            required: false
         },
-        provided_ID:{
-            type:String,
-            required:false
+        provided_ID: {
+            type: String,
+            required: false
         }
-    }]
+    }],
+
 }, {
     timestamps: true
 });
 const User = mongoose.model('User', userSchema);
 
+const userFriendSchema = new Schema({
+    user_ID: {
+        type: Schema.Types.ObjectId,
+        required: true,
+        ref: 'User'
+    },
+    friends: {
+        type: [String],
+        default: []
+    },
+    recieved_requests: [{
+        _id: false,
+        friend_requests_recieved_from: {
+            type: String,
+        },
+        status: {
+            type: String,
+            enum: ['pending', 'accepted', 'rejected'],
+            default: 'pending'
+        }
+    }, { timestamps: true }],
+
+    send_requests: [{
+        _id: false,
+        friend_requests_sended_to: {
+            type: String,
+        }
+    }, { timestamps: true }],
+})
+
+const User_Friend = mongoose.model('User_Friend', userFriendSchema);
 // Transaction Success Schema
-const transactionSchema  = new Schema({
+const transactionSchema = new Schema({
     // _id bga 
     zaal_ID: {
         type: Schema.Types.ObjectId,
@@ -75,57 +110,60 @@ const transactionSchema  = new Schema({
         ref: "ZaalSchema"
     },
     day: {
-        type: String, 
+        type: String,
         required: true
     },
     start_time: {
-        type: String, 
+        type: String,
         required: true
     },
     end_time: {
         type: String,
         required: true
     },
-    num_players:{
-        type:Number,
-        required:true
+    num_players: {
+        type: Number,
+        required: true
     },
-    current_player:{
-        type:Number,
-        required:true
-    },  
-    total_amount:{
-        type:Number,
-        required:true
+    current_player: {
+        type: Number,
+        required: true
     },
-    paying_people:[{ 
-        _id:false,
+    total_amount: {
+        type: Number,
+        required: true
+    },
+    paying_people: [{
+        _id: false,
         paymentID: {
-            type:Schema.Types.ObjectId,
+            type: Schema.Types.ObjectId,
+            default: () => new mongoose.Types.ObjectId()
         },
         userID: {
             type: Schema.Types.ObjectId,
-            ref:"User",
+            ref: "User",
+            required: false
         },
         amountPaid: {
             type: Number,
-            required: true
+            required: false
         },
-        payment_status:{
-            type:String,
-            enum:["Pending", "Completed", "failed","Expired"],
+        payment_status: {
+            type: String,
+            enum: ["Pending", "Completed", "failed", "Expired"],
             default: "Pending"
         },
-        timestamp:{
-            type:Date,
+        timestamp: {
+            type: Date,
             default: Date.now
         },
-        refund_status:{
-            type:String,
-            enum:["none","requested", "completed"]
+        refund_status: {
+            type: String,
+            enum: ["none", "requested", "completed"],
+            default: "none"
         }
-}]
-    
+    }]
+
 }, {
     timestamps: true
 });
@@ -133,15 +171,15 @@ const TransactionSchema = mongoose.model("Transactions", transactionSchema);
 
 // Transaction Canceled Schema
 const transCanceledSchema = new Schema({
-    transaction_ID:{
+    transaction_ID: {
         type: Schema.Types.ObjectId,
-        required:true,
-        ref:'Transactions'
+        required: true,
+        ref: 'Transactions'
     },
-    refund_status:{
-        type:String,
-        enum:['success', 'pending','failed', "canceled"],
-        default:'failed'
+    refund_status: {
+        type: String,
+        enum: ['success', 'pending', 'failed', "canceled"],
+        default: 'failed'
     },
     cancellationReason: {
         type: String,
@@ -174,15 +212,35 @@ const zaalSchema = new Schema({
     //         require: false
     //     },
     // },
-    base_time_slots:[{
+    base_time_slots: [{
         _id: false,
         start_time: {
             type: String,
         },
-        end_time:{
+        end_time: {
             type: String,
         },
     }],
+    reviews: [{
+        _id: false,
+        user_ID: {
+            type: Schema.Types.ObjectId,
+            required: true,
+            ref: "User"
+        },
+        review_message: {
+            type: String,
+            required: true
+        },
+        timestamp: {
+            type: Date,
+            default: Date.now
+        },
+        rating: {
+            type: Number,
+            required: true
+        }
+    }]
 }, {
     timestamps: true
 });
@@ -191,24 +249,24 @@ const ZaalSchema = mongoose.model("Zaal_info", zaalSchema);
 
 // Chat Schema
 const groupChatSchema = new Schema({
-    members:[
+    members: [
         {
             type: Schema.Types.ObjectId,
             required: true,
             ref: 'User'
         }
     ],
-    transaction_ID:{
-        type:Schema.Types.ObjectId,
-        required:true,
-        ref:"Transactions"
+    transaction_ID: {
+        type: Schema.Types.ObjectId,
+        required: true,
+        ref: "Transactions"
     },
     messages: [
         {
             senderId: {
                 type: Schema.Types.ObjectId,
                 required: true,
-                ref: 'User'  
+                ref: 'User'
             },
             message: {
                 type: String,
@@ -226,10 +284,11 @@ const groupChatSchema = new Schema({
 
 const Group_Chat_Schema = mongoose.model("Group_Chat_Schema", groupChatSchema);
 
-module.exports = { 
+module.exports = {
     User,
     TransactionSchema,
     Trans_Canceled,
     ZaalSchema,
-    Group_Chat_Schema
+    Group_Chat_Schema,
+    User_Friend
 };
