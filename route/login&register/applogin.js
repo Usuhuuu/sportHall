@@ -5,6 +5,8 @@ const axios = require('axios');
 const { User } = require('../../model/dataModel');
 const jwt = require('jsonwebtoken');
 const { google } = require('googleapis');
+const { faker } = require('@faker-js/faker');
+
 
 router.post("/auth/facebook", async (req, res) => {
     const { accessToken: userAccessToken } = req.body;
@@ -20,7 +22,12 @@ router.post("/auth/facebook", async (req, res) => {
         }
         const user = userDataResponse.data;
         const [firstName, lastName = ''] = user.name.split(' ');
-
+        const generateUsername = () => {
+            // Generate a username with an adjective, a noun, and a random number
+            const username = `${faker.word.adjective()}-${faker.word.noun()}-${faker.number.int({ min: 1000, max: 9999 })}`;
+            return username;
+        }
+        const username = generateUsername();
         let findUser = await User.findOne({ email: user.email });
         if (!findUser) {
             try {
@@ -30,6 +37,7 @@ router.post("/auth/facebook", async (req, res) => {
                         firstName,
                         lastName
                     },
+                    unique_user_ID: username,
                     third_party_user_ID: [{
                         provider: "facebook",
                         provided_ID: user.id
@@ -43,7 +51,7 @@ router.post("/auth/facebook", async (req, res) => {
                 console.error("Facebook login: User creation failed", err);
                 return res.status(500).json({ message: 'User creation failed' });
             }
-        } else{
+        } else {
             try {
                 await User.updateOne(
                     { email: user.email },
@@ -63,7 +71,7 @@ router.post("/auth/facebook", async (req, res) => {
         }
         const accessToken = jwt.sign({
             userID: findUser._id,
-            email: findUser.email
+            unique_user_ID: findUser.unique_user_ID,
         }, process.env.JWT_ACCESS_SECRET, {
             algorithm: 'HS256',
             expiresIn: process.env.JWT_EXPIRES_IN
@@ -104,6 +112,13 @@ router.post("/auth/google", async (req, res) => {
         const familyName = user.names[0]?.familyName || '';
         const googleId = user.resourceName.split('/')[1];
 
+
+        const generateUsername = () => {
+            // Generate a username with an adjective, a noun, and a random number
+            const username = `${faker.word.adjective()}-${faker.word.noun()}-${faker.number.int({ min: 1000, max: 9999 })}`;
+            return username;
+        }
+        const username = generateUsername();
         let findUser = await User.findOne({ email });
 
         if (!findUser) {
@@ -114,6 +129,7 @@ router.post("/auth/google", async (req, res) => {
                         firstName: givenName,
                         lastName: familyName
                     },
+                    unique_user_ID: username,
                     userAgreeTerms: {
                         agree_terms: true,
                         agree_privacy: true
@@ -148,11 +164,12 @@ router.post("/auth/google", async (req, res) => {
         const user_ID = findUser._id
         const accessTokens = jwt.sign({
             userID: user_ID,
-            email: email
+            unique_user_ID: findUser.unique_user_ID
         }, process.env.JWT_ACCESS_SECRET, {
             algorithm: 'HS256',
             expiresIn: process.env.JWT_EXPIRES_IN
         });
+        console.log(accessTokens)
 
         const refreshToken = jwt.sign({
             userID: user_ID

@@ -1,49 +1,50 @@
 const express = require('express')
 const router = express.Router();
-const {sha3_256} = require('js-sha3')
+const { sha3_256 } = require('js-sha3')
 const crypto = require('crypto')
-const { User,UserNames, UserPassword } = require('../../model/dataModel');
+const { User, UserNames, UserPassword } = require('../../model/dataModel');
 require('dotenv').config()
 const speakeasy = require('speakeasy');
-const {hmacPromise} = require('../Functions/HMAC')
+const { secure_password_function } = require('../Functions/PBE')
 const { v4: uuidv4 } = require('uuid');
 const redisClient = require('../../config/redisConnect');
-const {emailQueue,deletedJobIds} = require('../Functions/mailQueue')
+const { emailQueue, deletedJobIds } = require('../Functions/mailQueue')
 
-router.post('/signup', async (req,res)=>{
-    const { email, phoneNumber,userPassword,userNames,userAgreeTerms, userType }= req.body
-    try{
-        const userFind = await User.findOne({email: email})
-        if(userFind) {
-            return res.status(400).json({message: "User Already Existing SDA"});
+router.post('/signup', async (req, res) => {
+    const { unique_user_ID, email, phoneNumber, userPassword, userNames, userAgreeTerms, userType } = req.body
+    try {
+        const userFind = await User.findOne({ email: email })
+        if (userFind) {
+            return res.status(400).json({ message: "User Already Existing SDA" });
         }
         //16 byte Salt generate Hiin
-        const saltGenerator = crypto.randomBytes(16).toString('hex'); 
-        //password a HMAC hergelj ENCRYPT hiideg Functiong duudaj hergelj bn
-        const hashedPassword = await hmacPromise(userPassword.password, saltGenerator, 2000, 64, 'sha512');
-
+        // CSPRNG ashiglaj salt uusgeh
+        const saltGenerator = crypto.randomBytes(16).toString('hex');
+        console.log("salt", saltGenerator)
+        const password = userPassword;
+        //password a PBE hergelj ENCRYPT hiideg Functiong duudaj hergelj bn
+        const hashedPassword = await secure_password_function(password, saltGenerator);
+        console.log("hashedpass", hashedPassword)
         await User.create({
+            unique_user_ID: unique_user_ID,
             email: email,
             phoneNumber: phoneNumber,
             //subDocument Saving
-            userAgreeTerms:{
+            userAgreeTerms: {
                 agree_terms: userAgreeTerms.agree_terms,
                 agree_privacy: userAgreeTerms.agree_privacy,
             },
-            userPassword:{
-                password:hashedPassword,
-                salt:saltGenerator
-            },
-            userNames:{
-                firstName:userNames.firstName,
+            userPassword: hashedPassword,
+            userNames: {
+                firstName: userNames.firstName,
                 lastName: userNames.lastName
             },
-            userType:userType
+            userType: userType
 
         })
         res.status(200).json({ message: 'User created successfully!' });
     }
-    catch(err){
+    catch (err) {
         console.error(err);
         res.status(500).json({ message: 'Internal server error' });
     }
@@ -96,7 +97,7 @@ router.post('/checkVerify', async (req, res) => {
         return res.status(400).json({ success: false, message: 'Verification code is required' });
     }
     try {
-        const client = await redisClient(); 
+        const client = await redisClient();
         const secret = await client.get(verify_Code);
         if (!secret) {
             console.log(`Verification code ${verify_Code} not found or expired`);
@@ -107,7 +108,7 @@ router.post('/checkVerify', async (req, res) => {
         const isValid = speakeasy.totp.verify({
             secret: secret.base32,
             encoding: 'base32',
-            token: verify_Code,  
+            token: verify_Code,
             window: 100  // Allow slight time drift
         });
         if (isValid) {
@@ -125,6 +126,26 @@ router.post('/checkVerify', async (req, res) => {
     }
 });
 
+
+router.post('/checkunique', async (req, res) => {
+    const { unique_user_ID } = req.body
+    try {
+        if (!unique_user_ID) {
+            return res.status(400).json({ message: "User ID is required" })
+        }
+        const UserFind = await User.findOne({ unique_user_ID: unique_user_ID })
+        if (UserFind) {
+            res.json({ message: "User ID already existing", user_id_available: false })
+        } else {
+            console.log("User ID is available")
+            res.json({ message: "User ID is available", user_id_available: true })
+        }
+
+    } catch (err) {
+        console.error(err)
+    }
+
+})
 
 
 module.exports = router;
