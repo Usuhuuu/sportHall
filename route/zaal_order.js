@@ -58,7 +58,7 @@ router.post('/reserve', authenticateJWT, async (req, res) => {
                                     user_ID: decodedUserID,
                                     amountPaid: amountPaid || "10000",
                                     num_players,
-                                    payment_status: "Completed",
+                                    payment_status: "Pending",
                                 }
                             ]
 
@@ -185,7 +185,6 @@ router.post('/auth/basetimeslots', authenticateJWT, async (req, res) => {
 
 router.get('/timeslotscheck', async (req, res) => {
     const { zaalniID, odor } = req.query;
-    console.log(zaalniID, odor)
     try {
         const available = await TransactionSchema.find({
             zaal_ID: zaalniID,
@@ -194,26 +193,30 @@ router.get('/timeslotscheck', async (req, res) => {
                 $elemMatch: { payment_status: { $in: ['Completed', 'Pending'] } }
             }
         })
-        console.log(JSON.stringify(available, null, 2));
+        //console.log(JSON.stringify(available, null, 2))
         if (available.length > 0) {
-            const orderedTime = available.map(available => `${available.start_time}~${available.end_time}`)
-            if (available.paying_people.payment_status == 'Completed') {
+
+            const orderedTime = available.map(result => {
+                return {
+                    time: `${result.start_time}~${result.end_time}`,
+                    total_member: result.num_players,
+                    current_player: result.current_player,
+                    status: result.paying_people.map(payment => payment.payment_status),
+
+                };
+            });
+            console.log(orderedTime)
+            if (orderedTime) {
                 return res.json({
                     available: false,
-                    message: 'Time slot is already reserved.',
-                    not_possible_time: { orderedTime }
-                });
-            } else if (available.paying_people.payment_status == "Pending") {
-                return res.json({
-                    available: true,
-                    message: 'Time slot is available to join.',
+                    message: `date: ${odor} times are checked and need members`,
                     not_possible_time: { orderedTime }
                 });
             }
         } else {
             // No transactions found, meaning the time slots are available
             res.json({
-                message: "Available",
+                message: "All available",
                 available: true,
                 not_possible_time: ""
             });
