@@ -1,5 +1,4 @@
-const {ZaalSchema} = require('../../model/dataModel')
-const express = require('express');
+const { ZaalSchema } = require('../../model/dataModel')
 
 const reserveTimeSlot = async (zaalId, startTime, endTime) => {
     await ZaalSchema.updateOne(
@@ -10,4 +9,4 @@ const reserveTimeSlot = async (zaalId, startTime, endTime) => {
 
 
 
-module.exports = {reserveTimeSlot}
+module.exports = { reserveTimeSlot }

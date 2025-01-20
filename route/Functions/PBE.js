@@ -1,4 +1,3 @@
-const crypto = require('crypto');
 const argon2 = require("argon2");
 
 const secure_password_function = async (password, salt) => {
@@ -7,10 +6,10 @@ const secure_password_function = async (password, salt) => {
             console.log("Salt (Buffer):", Buffer.from(salt));
             const hashValue = await argon2.hash(password, {
                 type: argon2.argon2id,
-                memoryCost: 4096, 
-                timeCost: 3,      
-                parallelism: 1,   
-                salt: Buffer.from(salt)       
+                memoryCost: 4096,
+                timeCost: 3,
+                parallelism: 1,
+                salt: Buffer.from(salt)
             });
 
             resolve(hashValue);
@@ -31,4 +30,4 @@ const verify_password_promise = async (password, hashValue) => {
     });
 };
 
-module.exports = { secure_password_function,verify_password_promise };
+module.exports = { secure_password_function, verify_password_promise };

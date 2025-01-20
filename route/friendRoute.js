@@ -2,7 +2,6 @@ const express = require('express');
 const router = express.Router();
 const { authenticateJWT } = require('./Functions/auth')
 const { User, User_Friend } = require('../model/dataModel');
-const { json } = require('body-parser');
 
 router.get('/auth/friend', authenticateJWT, async (req, res) => {
     try {

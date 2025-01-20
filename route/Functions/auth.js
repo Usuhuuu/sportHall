@@ -1,9 +1,9 @@
 const jwt = require('jsonwebtoken');
 require('dotenv').config();
-const { User } = require('../../model/dataModel')
 
 const authenticateJWT = async (req, res, next) => {
     // Authorization Header check
+    console.log("401 error check authorization")
     const token = req.headers.authorization?.split(' ')[1];
     if (!token) {
         return res.status(401).json({ message: 'Token missing', auth: false });  // Send response and return
