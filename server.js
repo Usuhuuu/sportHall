@@ -96,6 +96,7 @@ const chatRoute = require("./route/chatRoute.js")
 const appLogin = require('./route/login&register/applogin.js')
 const zaalorder = require('./route/zaal_order.js')
 const friendRoute = require('./route/friendRoute.js')
+const notification = require('./route/admin/notification.js')
 
 app.use(chatRoute)
 app.use(signup)
@@ -104,7 +105,7 @@ app.use(login)
 app.use(appLogin)
 app.use(zaalorder)
 app.use(friendRoute)
-
+app.use(notification)
 
 
 // https init 

@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router()
-const {Group_Chat_Schema} = require('../model/dataModel')
-const {authenticateJWT} = require('./Functions/auth')
+const { Group_Chat_Schema } = require('../model/dataModel')
+const { authenticateJWT } = require('./Functions/auth')
 require('dotenv').config()
 
 router.get('/chat/check', authenticateJWT, async (req, res) => {
@@ -17,7 +17,7 @@ router.get('/chat/check', authenticateJWT, async (req, res) => {
         if (chat.length > 0) {
             const chatGroupIDs = chat.map(group => group._id);
             console.log(chatGroupIDs)
-            return res.json({ message: "Group chat exists", chatGroupIDs, auth:true });
+            return res.json({ message: "Group chat exists", chatGroupIDs, auth: true });
         } else {
             return res.status(404).json({ message: "Group chat not found" });
         }
@@ -27,14 +27,14 @@ router.get('/chat/check', authenticateJWT, async (req, res) => {
     }
 });
 
-router.post('/chat/groupJoin',authenticateJWT, async (req, res) => {
+router.post('/chat/groupJoin', authenticateJWT, async (req, res) => {
     try {
-        const { groupId } = req.body; 
+        const { groupId } = req.body;
         const decodedUserId = req.user.userID
-        if (!groupId ) {
-            return res.status(404).json({message:"Chat doesn't exist"})
-        } else if(!decodedUserId){
-            return res.status(401).json({message:"User Doesn't Exist"})
+        if (!groupId) {
+            return res.status(404).json({ message: "Chat doesn't exist" })
+        } else if (!decodedUserId) {
+            return res.status(401).json({ message: "User Doesn't Exist" })
         }
         console.log(decodedUserId)
 
