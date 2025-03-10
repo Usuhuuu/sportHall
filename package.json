@@ -15,7 +15,7 @@
     "@sentry/cli": "^2.38.2",
     "@sentry/node": "^8.37.1",
     "argon2": "^0.41.1",
-    "axios": "^1.7.7",
+    "axios": "^1.8.2",
     "bcrypt": "^5.1.1",
     "body-parser": "^1.20.3",
     "bullmq": "^5.13.1",
