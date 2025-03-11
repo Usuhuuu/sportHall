@@ -4,11 +4,7 @@ const { Group_Chat_Schema } = require('../model/dataModel')
 const { authenticateJWT } = require('./Functions/auth')
 require('dotenv').config()
 
-router.get('/chat/check', authenticateJWT, async (req, res) => {
-    const token = req.headers.authorization?.split(' ')[1];
-    if (!token) {
-        return res.status(401).json({ message: 'Access token is required' });
-    }
+router.get('/auth/chatcheck', authenticateJWT, async (req, res) => {
     try {
         const userID = req.user.userID;
         const chat = await Group_Chat_Schema.find({
@@ -16,10 +12,9 @@ router.get('/chat/check', authenticateJWT, async (req, res) => {
         });
         if (chat.length > 0) {
             const chatGroupIDs = chat.map(group => group._id);
-            console.log(chatGroupIDs)
             return res.json({ message: "Group chat exists", chatGroupIDs, auth: true });
         } else {
-            return res.status(404).json({ message: "Group chat not found" });
+            return res.json({ message: "Group chat not found", success: false });
         }
     } catch (err) {
         console.error("Error fetching chat history:", err);
@@ -32,9 +27,9 @@ router.post('/chat/groupJoin', authenticateJWT, async (req, res) => {
         const { groupId } = req.body;
         const decodedUserId = req.user.userID
         if (!groupId) {
-            return res.status(404).json({ message: "Chat doesn't exist" })
+            return res.json({ message: "chat doesn't exist", status: false })
         } else if (!decodedUserId) {
-            return res.status(401).json({ message: "User Doesn't Exist" })
+            return res.json({ message: "User Doesn't Exist", status: false })
         }
         console.log(decodedUserId)
 

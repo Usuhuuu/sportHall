@@ -73,14 +73,14 @@ router.post("/auth/facebook", async (req, res) => {
             userID: findUser._id,
             unique_user_ID: findUser.unique_user_ID,
         }, process.env.JWT_ACCESS_SECRET, {
-            algorithm: 'HS256',
+            algorithm: process.env.JWT_ALGORITHM,
             expiresIn: process.env.JWT_EXPIRES_IN
         });
 
         const refreshToken = jwt.sign({
             userID: findUser._id,
         }, process.env.JWT_REFRESH_SECRET, {
-            algorithm: 'HS256',
+            algorithm: process.env.JWT_ALGORITHM,
             expiresIn: process.env.JWT_REFRESH_EXPIRES_IN
         });
         res.status(200).json({ auth: true, accessToken, refreshToken, message: "Successfully logged in with Facebook" });
@@ -166,7 +166,7 @@ router.post("/auth/google", async (req, res) => {
             userID: user_ID,
             unique_user_ID: findUser.unique_user_ID
         }, process.env.JWT_ACCESS_SECRET, {
-            algorithm: 'HS256',
+            algorithm: process.env.JWT_ALGORITHM,
             expiresIn: process.env.JWT_EXPIRES_IN
         });
         console.log(accessTokens)
@@ -174,7 +174,7 @@ router.post("/auth/google", async (req, res) => {
         const refreshToken = jwt.sign({
             userID: user_ID
         }, process.env.JWT_REFRESH_SECRET, {
-            algorithm: 'HS256',
+            algorithm: process.env.JWT_ALGORITHM,
             expiresIn: process.env.JWT_REFRESH_EXPIRES_IN
         });
 

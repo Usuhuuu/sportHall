@@ -5,15 +5,16 @@
   "main": "server.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "nodemon server.js && npm run sentry:sourcemaps",
-    "sentry:sourcemaps": "sentry-cli sourcemaps inject --org zaalproject --project node-7c ./server.js && sentry-cli sourcemaps upload --org zaalproject --project node-7c ./server.js"
+    "start": "nodemon server.js && npm run sentry:sourcemaps && npm run sentry:sourcemaps",
+    "sentry:sourcemaps": "sentry-cli sourcemaps inject --org zaalproject --project node ./ && sentry-cli sourcemaps upload --org zaalproject --project node ./"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@sentry/cli": "^2.38.2",
-    "@sentry/node": "^8.37.1",
+    "@sentry/cli": "^2.41.1",
+    "@sentry/node": "^8.53.0",
+    "@sentry/profiling-node": "^8.53.0",
     "argon2": "^0.41.1",
     "axios": "^1.7.7",
     "bcrypt": "^5.1.1",

@@ -1,5 +1,6 @@
 const express = require('express');
 require('dotenv').config();
+require('./route/Functions/sentry.js')//log tracing
 const connectDB = require('./config/dbConnect.js');
 const app = express();
 const helmet = require('helmet'); //hsts
@@ -11,19 +12,12 @@ const rateLimit = require('express-rate-limit'); //limit rate
 const setupWebSocket = require('./route/Functions/chat.js')
 const https = require('node:https');
 const fs = require('node:fs');
-const sentry = require('@sentry/node')
+
 
 //mongodb & redis Connections
 connectDB();
 //middleWare 
 
-
-
-// sentry init 
-sentry.init({
-    dsn: "https://f6cb6ea23a5763ab60f0d8c50bae3d7e@o4508263161856000.ingest.us.sentry.io/4508278007726080",
-    tracesSampler: 1.0
-})
 app.set('trust proxy', 1);
 //HSTS secure 
 app.use(helmet.hsts({
@@ -86,6 +80,8 @@ app.use((req, res, next) => {
 });
 
 
+
+
 //
 
 //Router define
@@ -121,4 +117,3 @@ const https_port = process.env.HTTPS_PORT || 443
 httpsServer.listen(https_port, () => {
     console.log(`https running on ${process.env.HTTPS_PORT}`)
 })
-

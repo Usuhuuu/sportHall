@@ -252,6 +252,28 @@ router.post('/auth/zaal_review_update', authenticateJWT, async (req, res) => {
 
 
 
+router.post("/auth/favorite_halls", authenticateJWT, async (req, res) => {
+    const { zaal_ID } = req.body
+    try {
+        const decodedUserID = req.user.userID
+        const findUser = await User.findOneAndUpdate({ _id: decodedUserID }, {
+            $push: {
+                fav_hall_id: zaal_ID
+            }
+        })
+        if (!zaal_ID) {
+            res.status(400).json({ message: "User not founded", success: false })
+        }
+
+        res.status(200).json({ message: "Hall added to favorite", success: true })
+
+    } catch (err) {
+        console.log(err)
+    }
+})
+
+
+
 
 
 
