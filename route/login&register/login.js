@@ -16,7 +16,7 @@ router.post('/login', async (req, res) => {
             userFind = await User.findOne({ unique_user_ID: email });
         }
         if (!userFind) {
-            return res.status(401).json({ message: "User does not exist" });
+            return res.json({ message: "User does not exist", userNotFound: false, success: false });
         }
         //Database Salt, password ogson passwordtai tulgah gej retrieve hiij awchirna
         const storedHash = userFind.userPassword;
@@ -30,7 +30,7 @@ router.post('/login', async (req, res) => {
                 },
                 process.env.JWT_ACCESS_SECRET,
                 {
-                    algorithm: 'HS256',
+                    algorithm: process.env.JWT_ALGORITHM,
                     expiresIn: process.env.JWT_EXPIRES_IN
                 }
             );
@@ -40,13 +40,13 @@ router.post('/login', async (req, res) => {
                 },
                 process.env.JWT_REFRESH_SECRET,
                 {
-                    algorithm: 'HS256',
+                    algorithm: process.env.JWT_ALGORITHM,
                     expiresIn: process.env.JWT_REFRESH_EXPIRES_IN
                 }
             );
-            res.status(200).json({ auth: true, accessToken, refreshToken });
+            res.json({ success: true, accessToken, refreshToken });
         } else {
-            return res.status(401).json({ auth: false, message: 'Wrong email or password' });
+            return res.json({ auth: false, message: 'Wrong email or password', userNotFound: false });
         }
     } catch (err) {
         console.log(err);
@@ -54,15 +54,19 @@ router.post('/login', async (req, res) => {
     }
 });
 
-router.post("/refresh", (req, res) => {
-    const refreshToken = req.headers.refresh;
-    console.log("refreshRequest")
+router.post("/auth/refresh", (req, res) => {
+    const refreshToken = req.headers.authorization?.split(" ")[1];
+    console.log("Refresh")
     try {
-        if (refreshToken == null) {
-            return res.status(401).json({ authAccess: false, message: 'User must Login again' });
+        if (refreshToken == null || undefined) {
+            return res.status(400).json({ success: false, message: 'User must Login again' });
         }
         jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET, async (err, user) => {
-            if (err) return res.sendStatus(403);
+            if (err) {
+                console.log("pisda llr")
+                return res.status(400).json({ success: false, message: "Invalid Refresh Token" });
+            }
+
             const userFind = await User.findOne({ _id: user.userID })
             const accessToken = jwt.sign({
                 userID: user.userID,
@@ -74,8 +78,7 @@ router.post("/refresh", (req, res) => {
                     expiresIn: process.env.JWT_EXPIRES_IN,
                 }
             );
-            res.json({ authAccess: true, accessToken });
-
+            res.status(200).json({ success: true, newAccessToken: accessToken, refreshToken: refreshToken });
         });
     } catch (err) {
         res.status(500)

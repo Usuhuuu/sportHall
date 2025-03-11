@@ -64,6 +64,13 @@ const userSchema = new Schema({
             required: false
         }
     }],
+    fav_hall_id: [{
+        _id: false,
+        user_fav_hall_ID: {
+            type: Schema.Types.ObjectId,
+            ref: 'Zaal_info'
+        }
+    }, { timestamps: true }],
 
 }, {
     timestamps: true
@@ -263,10 +270,11 @@ const groupChatSchema = new Schema({
     },
     messages: [
         {
-            senderId: {
-                type: Schema.Types.ObjectId,
+            _id: false,
+
+            sender_unique_name: {
+                type: String,
                 required: true,
-                ref: 'User'
             },
             message: {
                 type: String,
@@ -281,6 +289,9 @@ const groupChatSchema = new Schema({
 }, {
     timestamps: true
 });
+
+
+groupChatSchema.index({ "messages.timestamp": 1 });
 
 const Group_Chat_Schema = mongoose.model("Group_Chat_Schema", groupChatSchema);
 

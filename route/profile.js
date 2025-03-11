@@ -1,6 +1,6 @@
 const express = require('express')
 const router = express.Router();
-const { User, User_Friend } = require('../model/dataModel')
+const { User } = require('../model/dataModel')
 const { authenticateJWT } = require('./Functions/auth')
 
 router.get('/auth/profile_main', authenticateJWT, async (req, res) => {
@@ -10,8 +10,8 @@ router.get('/auth/profile_main', authenticateJWT, async (req, res) => {
         if (!userFind) {
             return res.status(400).json({ message: "User doesnt exist " });
         }
-        let existingFriends = []
-        existingFriends = await User_Friend.findOne({ user_ID: req.user.userID });
+        // let existingFriends = []
+        // existingFriends = await User_Friend.findOne({ user_ID: req.user.userID });
 
 
         const formData = JSON.stringify({
@@ -20,19 +20,14 @@ router.get('/auth/profile_main', authenticateJWT, async (req, res) => {
             phoneNumber: userFind.phoneNumber,
             firstName: userFind.userNames.firstName,
             lastName: userFind.userNames.lastName,
-            //friends: existingFriends.friends,
-            //recieved_requests: existingFriends.recieved_requests.filter(req => req.status == "pending").map(req => req.friend_requests_recieved_from),
-            //sentFriendIDs: existingFriends.send_requests.map(req => req.friend_requests_sended_to),
         })
-        userFind.userType
+        console.log(userFind.userType)
         res.json({ formData, role: userFind.userType, auth: true })
     }
     catch (err) {
         console.log(err)
     }
 })
-
-
 
 router.get('/auth/role', authenticateJWT, async (req, res) => {
     console.log("user Role")
@@ -47,6 +42,24 @@ router.get('/auth/role', authenticateJWT, async (req, res) => {
             console.log("user role is", userFind.userType)
             res.json({ role: userFind.userType })
         }
+    } catch (err) {
+        console.log(err)
+    }
+})
+
+router.post("/auth/updateProfile", authenticateJWT, async (req, res) => {
+    console.log("update Profile")
+    const { formData } = req.body;
+    try {
+        const userFind = await User.findOne({ _id: req.user.userID });
+        if (!userFind) {
+            return res.status(400).json({ message: "User doesnt exist " });
+        }
+        userFind.userNames.firstName = firstName;
+        userFind.userNames.lastName = lastName;
+        userFind.phoneNumber = phoneNumber;
+        userFind.save();
+        res.json({ message: "Profile Updated" })
     } catch (err) {
         console.log(err)
     }

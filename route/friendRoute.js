@@ -3,27 +3,25 @@ const router = express.Router();
 const { authenticateJWT } = require('./Functions/auth')
 const { User, User_Friend } = require('../model/dataModel');
 
-router.get('/auth/friend', authenticateJWT, async (req, res) => {
+router.get("/auth/profile_friends", authenticateJWT, async (req, res) => {
+    console.log("user Friends")
     try {
         const decodedUserID = req.user.userID;
-        const existingFriends = await User_Friend.findOne({ user_ID: decodedUserID });
-        if (!existingFriends) {
-            return res.status(404).json({ message: "No friends data found." });
-        } console.log(existingFriends)
-        const friends = JSON.stringify({
-            friends: existingFriends.friends,
-            recieved_requests: existingFriends.recieved_requests.filter(req => req.status == "pending").map(req => req.friend_requests_recieved_from),
-            //sentFriendIDs: existingFriends.send_requests.map(req => req.friend_requests_sended_to),
+        const userFriendFind = await User_Friend.findOne({ user_ID: decodedUserID })
+        let formFriends = []
+        console.log(userFriendFind)
+        if (!userFriendFind) {
+            return res.json({ message: "User Friend not founded", formData: formFriends });
+        }
+        formFriends = JSON.stringify({
+            friends: userFriendFind.friends,
+            recieved_requests: userFriendFind.recieved_requests.filter(req => req.status == "pending").map(req => req.friend_requests_recieved_from),
         })
-        console.log(friends)
-        res.status(200).json({
-            friends: friends
-        });
+        res.status(200).json({ formData: formFriends, auth: true })
     } catch (err) {
-        console.error(err);
-        res.status(500).json({ message: "An error occurred while fetching friends." });
+        console.log(err)
     }
-});
+})
 
 router.post('/auth/friend_request', authenticateJWT, async (req, res) => {
     const { friend_unique_ID } = req.body
