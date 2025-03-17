@@ -30,7 +30,7 @@
     "helmet": "^7.1.0",
     "js-sha3": "^0.9.3",
     "jsonwebtoken": "^9.0.2",
-    "mongodb": "^6.13.0",
+    "mongodb": "^6.13.1",
     "mongoose": "^8.4.5",
     "node-cron": "^3.0.3",
     "nodemailer": "^6.10.0",
