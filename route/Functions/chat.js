@@ -1,5 +1,5 @@
 const { Server } = require('socket.io');
-const { Group_Chat_Schema, User, } = require('../../model/dataModel');
+const { Group_Chat_Schema, } = require('../../model/dataModel');
 const jwt = require('jsonwebtoken');
 require('dotenv').config();
 const mongoose = require('mongoose');
@@ -103,7 +103,7 @@ const setupWebSocket = (server) => {
                                 sender_unique_name: data.sender_unique_name,
                                 senderId: socket.userId,
                                 message: message,
-                                timestamp: new Date(),
+                                timestamp: data.timestamp
                             },
                         },
                     },
@@ -111,8 +111,13 @@ const setupWebSocket = (server) => {
                 );
 
                 io.to(socket.groupId).emit("receiveMessage", {
-                    senderId: socket.userId,
-                    message: data.message,
+                    socketId: socket.groupId,
+                    messages: {
+                        sender_unique_name: data.sender_unique_name,
+                        senderId: socket.userId,
+                        message: message,
+                        timestamp: data.timestamp
+                    }
                 });
 
                 console.log(`Message from ${socket.userId} in group ${socket.groupId}: ${message}`);

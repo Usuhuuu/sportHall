@@ -60,7 +60,6 @@ app.use(mongoSanitize({
 
 // rate Limiter
 let requestCounts = {}
-
 const limiter = rateLimit({
     windowMs: 60 * 1000,
     max: 100,
@@ -72,13 +71,23 @@ const limiter = rateLimit({
     }
 })
 app.use(limiter)
-app.use((req, res, next) => {
-    const ip = req.ip;
-    requestCounts[ip] = (requestCounts[ip] || 0) + 1;
-    console.log(`IP ${ip} has made ${requestCounts[ip]} requests`);
-    next(); // Move to the next middleware (rate limiter)
-});
 
+
+app.use((req, res, next) => {
+    const ip = req.ip || req.connection.remoteAddress; // Get IP
+    const endpoint = req.originalUrl; // Requested endpoint
+    const method = req.method; // HTTP method
+
+    const key = `${ip}-${endpoint}`;
+
+    requestCounts[key] = (requestCounts[key] || 0) + 1; // Track count
+
+    console.log(
+        `IP ${ip} has made ${requestCounts[key]} requests to [${method}] ${endpoint}`
+    );
+
+    next();
+});
 
 
 
