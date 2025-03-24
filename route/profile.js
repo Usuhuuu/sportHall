@@ -4,7 +4,6 @@ const { User } = require('../model/dataModel')
 const { authenticateJWT } = require('./Functions/auth')
 
 router.get('/auth/profile_main', authenticateJWT, async (req, res) => {
-    console.log("user Profile")
     try {
         const userFind = await User.findOne({ _id: req.user.userID })
         if (!userFind) {
@@ -21,7 +20,6 @@ router.get('/auth/profile_main', authenticateJWT, async (req, res) => {
             firstName: userFind.userNames.firstName,
             lastName: userFind.userNames.lastName,
         })
-        console.log(userFind.userType)
         res.json({ formData, role: userFind.userType, auth: true })
     }
     catch (err) {
