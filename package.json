@@ -6,6 +6,7 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "nodemon server.js && npm run sentry:sourcemaps && npm run sentry:sourcemaps",
+    "dev": "nodemon server.js",
     "sentry:sourcemaps": "sentry-cli sourcemaps inject --org zaalproject --project node ./ && sentry-cli sourcemaps upload --org zaalproject --project node ./"
   },
   "keywords": [],
