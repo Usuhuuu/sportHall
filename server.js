@@ -12,6 +12,7 @@ const rateLimit = require('express-rate-limit'); //limit rate
 const setupWebSocket = require('./route/Functions/chat.js')
 const https = require('node:https');
 const fs = require('node:fs');
+const crypto = require('crypto');
 
 
 //mongodb & redis Connections
@@ -114,15 +115,26 @@ app.use(notification)
 
 
 // https init 
+const decryptedKey = crypto.createPrivateKey({
+    key: fs.readFileSync(`${process.env.PRIVATE_KEY}`, 'utf8'),
+    passphrase: process.env.PRIVATE_PASS
+}).export({
+    type: 'pkcs8',
+    format: 'pem'
+})
+
 const httpsOptions = {
-    key: fs.readFileSync(`${process.env.PRIVATE_KEY}`),
-    cert: fs.readFileSync(`${process.env.CERTIFICATE_PATH}`),
-}
+    key: decryptedKey,
+    cert: fs.readFileSync(`${process.env.CERTIFICATE_PATH}`, 'utf8'),
+    ca: fs.readFileSync(`${process.env.CA_CERTIFICATE_PATH}`, 'utf8')
+};
+
 const httpsServer = https.createServer(httpsOptions, app)
 
 setupWebSocket(httpsServer)
 
 const https_port = process.env.HTTPS_PORT || 443
+
 httpsServer.listen(https_port, () => {
     console.log(`https running on ${process.env.HTTPS_PORT}`)
 })
