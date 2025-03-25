@@ -47,5 +47,14 @@
   "devDependencies": {
     "@faker-js/faker": "^9.2.0",
     "nodemon": "^3.1.9"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Usuhuuu/sportHall.git"
+  },
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/Usuhuuu/sportHall/issues"
+  },
+  "homepage": "https://github.com/Usuhuuu/sportHall#readme"
 }
