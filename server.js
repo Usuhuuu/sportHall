@@ -128,7 +128,6 @@ const httpsOptions = {
     cert: fs.readFileSync(`${process.env.CERTIFICATE_PATH}`, 'utf8'),
     ca: fs.readFileSync(`${process.env.CA_CERTIFICATE_PATH}`, 'utf8')
 };
-
 const httpsServer = https.createServer(httpsOptions, app)
 
 setupWebSocket(httpsServer)
