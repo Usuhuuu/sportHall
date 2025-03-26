@@ -13,7 +13,6 @@ const setupWebSocket = require('./route/Functions/chat.js')
 const https = require('node:https');
 const fs = require('node:fs');
 const crypto = require('crypto');
-const ngrok = require('@ngrok/ngrok');
 
 //mongodb & redis Connections
 connectDB();
@@ -134,6 +133,6 @@ setupWebSocket(httpsServer)
 
 const https_port = process.env.HTTPS_PORT || 443
 
-httpsServer.listen(https_port, () => {
-    console.log(`https running on ${https_port}`)
+app.listen(https_port, () => {
+    console.log(`https running on https://localhost:${https_port}`)
 })
