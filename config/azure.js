@@ -14,8 +14,6 @@ const client = new CertificateClient(process.env.AZURE_KEY_VAULT_URL, credential
 const getSecret = async () => {
     try {
         const retrievedSecret = await client.getCertificate(process.env.AZURE_CERTIFICATE_NAME);
-
-
         return retrievedSecret.cer
     } catch (error) {
         console.error('Error fetching secret:', error);

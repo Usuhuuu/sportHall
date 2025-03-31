@@ -117,13 +117,10 @@ app.use(notification)
 
 // https init 
 getSecret().then((pfx_cert) => {
-
-
     const httpsOptions = {
         pfx: pfx_cert,
         passphrase: process.env.PRIVATE_PASS,
     };
-
     //const httpsServer = https.createServer(httpsOptions, app);
     const httpServer = http.createServer(app);
 
