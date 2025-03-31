@@ -129,7 +129,7 @@ getSecret().then((pfx_cert) => {
     const https_port = process.env.HTTPS_PORT || 443;
 
     httpServer.listen(https_port, () => {
-        console.log(`HTTPS running on https://localhost:${https_port}`);
+        console.log(`HTTP running on https://localhost:${https_port}`);
     });
 }).catch((err) => {
     console.error('Error fetching certificate:', err);

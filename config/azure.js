@@ -1,5 +1,4 @@
 const { ClientSecretCredential } = require('@azure/identity');
-const { SecretClient } = require('@azure/keyvault-secrets');
 const { CertificateClient } = require('@azure/keyvault-certificates');
 
 
