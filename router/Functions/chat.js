@@ -6,8 +6,7 @@ const mongoose = require('mongoose');
 const { ObjectId } = mongoose.Types;
 
 const setupWebSocket = (server) => {
-    const io = new Server(server, { cors: { origin: "*" } });
-
+    const io = new Server(server, { cors: { origin: "*", credentials: true } });
     io.use((socket, next) => {
         const { token } = socket.handshake.auth;
         const { groupId } = socket.handshake.query;
@@ -155,7 +154,6 @@ const setupWebSocket = (server) => {
             }
         });
     });
-
     io.on("connect_error", (err) => {
         console.log("Connection error:", err.message);
         if (err.message === "jwt expired" || err.message === "Invalid token") {

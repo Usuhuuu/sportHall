@@ -1,6 +1,6 @@
 const express = require('express');
 require('dotenv').config();
-require('./route/Functions/sentry.js')//log tracing
+require('./router/Functions/sentry.js')//log tracing
 const connectDB = require('./config/dbConnect.js');
 const app = express();
 const helmet = require('helmet'); //hsts
@@ -9,10 +9,12 @@ const bodyParser = require('body-parser');
 const mongoSanitize = require('express-mongo-sanitize'); //noSQl injection
 const redisClient = require('./config/redisConnect.js'); //verification code storage 
 const rateLimit = require('express-rate-limit'); //limit rate
-const setupWebSocket = require('./route/Functions/chat.js')
+const setupWebSocket = require('./router/Functions/chat.js')
 const https = require('node:https');
+const http = require('node:http');
 const fs = require('node:fs');
 const crypto = require('crypto');
+const { getSecret } = require('./config/azure.js')
 
 //mongodb & redis Connections
 connectDB();
@@ -33,10 +35,15 @@ const allowedOrigins = [
     "exp://192.168.0.20:8081",
     "exp://192.168.0.20:8081",
     "118.176.174.110",
-    "127.0.0.1"
+    "127.0.0.1",
+    "http://192.168.0.20:8081",
+    "http://localhost:3000",
 ];
+
 const corsOptions = {
     origin: (origin, callback) => {
+        console.log("Request Origin: ", origin);  // Log the origin
+
         if (!origin || allowedOrigins.includes(origin)) {
             callback(null, true);
         } else {
@@ -44,7 +51,7 @@ const corsOptions = {
         }
     },
     credentials: true, // Allow credentials (cookies, authorization headers, etc.)
-    methods: ["GET", "POST", "PUT", "DELETE"],
+    methods: ["GET", "POST"],
 };
 
 app.use(cors(corsOptions));
@@ -89,19 +96,15 @@ app.use((req, res, next) => {
     next();
 });
 
-
-
-//
-
 //Router define
-const signup = require("./route/login&register/signup.js")
-const login = require("./route/login&register/login.js")
-const profile = require("./route/profile.js")
-const chatRoute = require("./route/chatRoute.js")
-const appLogin = require('./route/login&register/applogin.js')
-const zaalorder = require('./route/zaal_order.js')
-const friendRoute = require('./route/friendRoute.js')
-const notification = require('./route/admin/notification.js')
+const signup = require("./router/login&register/signup.js")
+const login = require("./router/login&register/login.js")
+const profile = require("./router/profile.js")
+const chatRoute = require("./router/chatRoute.js")
+const appLogin = require('./router/login&register/applogin.js')
+const zaalorder = require('./router/zaal_order.js')
+const friendRoute = require('./router/friendRoute.js')
+const notification = require('./router/admin/notification.js')
 
 app.use(chatRoute)
 app.use(signup)
@@ -112,27 +115,25 @@ app.use(zaalorder)
 app.use(friendRoute)
 app.use(notification)
 
-
 // https init 
-const decryptedKey = crypto.createPrivateKey({
-    key: fs.readFileSync(`${process.env.PRIVATE_KEY}`, 'utf8'),
-    passphrase: process.env.PRIVATE_PASS
-}).export({
-    type: 'pkcs8',
-    format: 'pem'
-})
+getSecret().then((pfx_cert) => {
 
-const httpsOptions = {
-    key: decryptedKey,
-    cert: fs.readFileSync(`${process.env.CERTIFICATE_PATH}`, 'utf8'),
-    ca: fs.readFileSync(`${process.env.CA_CERTIFICATE_PATH}`, 'utf8')
-};
-const httpsServer = https.createServer(httpsOptions, app)
 
-setupWebSocket(httpsServer)
+    const httpsOptions = {
+        pfx: pfx_cert,
+        passphrase: process.env.PRIVATE_PASS,
+    };
 
-const https_port = process.env.HTTPS_PORT || 443
+    //const httpsServer = https.createServer(httpsOptions, app);
+    const httpServer = http.createServer(app);
 
-app.listen(https_port, () => {
-    console.log(`https running on https://localhost:${https_port}`)
-})
+    setupWebSocket(httpServer);
+
+    const https_port = process.env.HTTPS_PORT || 443;
+
+    httpServer.listen(https_port, () => {
+        console.log(`HTTPS running on https://localhost:${https_port}`);
+    });
+}).catch((err) => {
+    console.error('Error fetching certificate:', err);
+});

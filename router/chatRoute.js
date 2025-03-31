@@ -12,7 +12,7 @@ router.get('/auth/chatcheck', authenticateJWT, async (req, res) => {
         });
         if (chat.length > 0) {
             const chatGroupIDs = chat.map(group => group._id);
-            return res.json({ message: "Group chat exists", chatGroupIDs, auth: true });
+            return res.json({ message: "Group chat exists", chatGroupIDs, success: true });
         } else {
             return res.json({ message: "Group chat not found", success: false });
         }
