@@ -53,7 +53,6 @@ const corsOptions = {
     credentials: true, // Allow credentials (cookies, authorization headers, etc.)
     methods: ["GET", "POST"],
 };
-
 app.use(cors(corsOptions));
 app.use(express.json());
 
