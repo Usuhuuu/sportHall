@@ -7,13 +7,11 @@ const helmet = require('helmet'); //hsts
 const cors = require('cors');
 const bodyParser = require('body-parser');
 const mongoSanitize = require('express-mongo-sanitize'); //noSQl injection
-const redisClient = require('./config/redisConnect.js'); //verification code storage 
 const rateLimit = require('express-rate-limit'); //limit rate
 const setupWebSocket = require('./router/Functions/chat.js')
 const https = require('node:https');
 const http = require('node:http');
 const fs = require('node:fs');
-const crypto = require('crypto');
 const { getSecret } = require('./config/azure.js')
 
 //mongodb & redis Connections

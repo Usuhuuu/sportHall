@@ -250,8 +250,6 @@ router.post('/auth/zaal_review_update', authenticateJWT, async (req, res) => {
     }
 })
 
-
-
 router.post("/auth/favorite_halls", authenticateJWT, async (req, res) => {
     const { zaal_ID } = req.body
     try {
@@ -267,6 +265,16 @@ router.post("/auth/favorite_halls", authenticateJWT, async (req, res) => {
 
         res.status(200).json({ message: "Hall added to favorite", success: true })
 
+    } catch (err) {
+        console.log(err)
+    }
+})
+router.post("/test/mailsend", async (req, res) => {
+    const { fromMail, toMail, mail_subject, mail, text } = req.body
+    try {
+        const result = await emailQueue.add("testEmail", {
+
+        })
     } catch (err) {
         console.log(err)
     }

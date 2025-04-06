@@ -26,6 +26,9 @@ const mailSender = async (fromMail, toMail, mail_subject, mail_text) => {
                 clientSecret: process.env.MAIL_CLIENT_SECRET,
                 refreshToken: process.env.MAIL_CLIENT_REFRESH_TOKEN,
                 accessToken: accessToken.token
+            },
+            tls: {
+                rejectUnauthorized: true
             }
         });
         const emailOptions = {

@@ -5,7 +5,7 @@ const { User } = require('../../model/dataModel');
 require('dotenv').config()
 const speakeasy = require('speakeasy');
 const { secure_password_function } = require('../Functions/PBE')
-const redisClient = require('../../config/redisConnect');
+//const redisClient = require('../../config/redisConnect');
 const { emailQueue, deletedJobIds } = require('../Functions/mailQueue')
 
 router.post('/signup', async (req, res) => {
@@ -57,7 +57,7 @@ router.post("/phoneVerification", async (req, res) => {
             secret: secret,
             encoding: 'base32'
         });
-        const client = await redisClient();
+        //const client = await redisClient();
         // Token Redis dotor turuulj hadgalj baij hodoln daraachin shatluu
         try {
             await client.setEx(token, VALIDITY_PERIOD, secret);
@@ -95,7 +95,7 @@ router.post('/checkVerify', async (req, res) => {
         return res.status(400).json({ success: false, message: 'Verification code is required' });
     }
     try {
-        const client = await redisClient();
+        //const client = await redisClient();
         const secret = await client.get(verify_Code);
         if (!secret) {
             console.log(`Verification code ${verify_Code} not found or expired`);
