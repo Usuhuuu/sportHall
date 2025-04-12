@@ -24,7 +24,7 @@ const worker = new Worker(
             console.log('📧 Email sent successfully from queue:', result);
             return result;
         } catch (err) {
-            console.error('❌ Error sending email from queue:', err);
+            console.error('Error sending email from queue:', err);
             throw err;
         }
     },

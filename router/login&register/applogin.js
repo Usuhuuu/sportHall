@@ -1,91 +1,66 @@
 const express = require('express')
 const router = express.Router()
 require('dotenv').config()
-const axios = require('axios');
 const { User } = require('../../model/dataModel');
 const jwt = require('jsonwebtoken');
 const { google } = require('googleapis');
 const { faker } = require('@faker-js/faker');
-
+const { facebookUserLoginRouter, facebookUserSignupContinue } = require("./functions/facebook_login_methods")
 
 router.post("/auth/facebook", async (req, res) => {
-    const { accessToken: userAccessToken } = req.body;
+    const { fbData: data } = req.body;
     try {
-        const userDataResponse = await axios.get('https://graph.facebook.com/me', {
-            params: {
-                access_token: userAccessToken,
-                fields: 'id,name,email'
-            }
-        });
-        if (!userDataResponse.data || !userDataResponse.data.email) {
-            return res.status(400).json({ message: 'Invalid Facebook token or no email provided' });
-        }
-        const user = userDataResponse.data;
-        const [firstName, lastName = ''] = user.name.split(' ');
-        const generateUsername = () => {
-            // Generate a username with an adjective, a noun, and a random number
-            const username = `${faker.word.adjective()}-${faker.word.noun()}-${faker.number.int({ min: 1000, max: 9999 })}`;
-            return username;
-        }
-        const username = generateUsername();
-        let findUser = await User.findOne({ email: user.email });
-        if (!findUser) {
-            try {
-                findUser = await User.create({
-                    email: user.email,
-                    userNames: {
-                        firstName,
-                        lastName
-                    },
-                    unique_user_ID: username,
-                    third_party_user_ID: [{
-                        provider: "facebook",
-                        provided_ID: user.id
-                    }],
-                    userAgreeTerms: {
-                        agree_terms: true,
-                        agree_privacy: true
-                    }
-                });
-            } catch (err) {
-                console.error("Facebook login: User creation failed", err);
-                return res.status(500).json({ message: 'User creation failed' });
-            }
-        } else {
-            try {
-                await User.updateOne(
-                    { email: user.email },
-                    {
-                        $addToSet: {
-                            third_party_user_ID: {
-                                provider: "facebook",
-                                provided_ID: user.id
-                            }
-                        }
-                    }
-                );
-            } catch (err) {
-                console.error("Failed to update third_party_user_ID", err);
-                return res.status(500).json({ message: 'User update failed' });
-            }
-        }
-        const accessToken = jwt.sign({
-            userID: findUser._id,
-            unique_user_ID: findUser.unique_user_ID,
-        }, process.env.JWT_ACCESS_SECRET, {
-            algorithm: process.env.JWT_ALGORITHM,
-            expiresIn: process.env.JWT_EXPIRES_IN
-        });
+        const { accessToken: userAccessToken } = data;
+        const { signUpTimer } = data;
+        if (signUpTimer) {
+            console.log("signup_continue")
+            const signUpFinalResult = await facebookUserSignupContinue({ signUpTimer, data })
 
-        const refreshToken = jwt.sign({
-            userID: findUser._id,
-        }, process.env.JWT_REFRESH_SECRET, {
-            algorithm: process.env.JWT_ALGORITHM,
-            expiresIn: process.env.JWT_REFRESH_EXPIRES_IN
-        });
-        res.status(200).json({ auth: true, accessToken, refreshToken, message: "Successfully logged in with Facebook" });
+            if (signUpFinalResult.success) {
+                return res.status(200).json({
+                    success: signUpFinalResult.success,
+                    accessToken: signUpFinalResult.accessToken,
+                    refreshToken: signUpFinalResult.refreshToken,
+                    message: signUpFinalResult.message,
+                })
+            }
+        }
+        if (!userAccessToken) {
+            return res.status(400).json({ message: 'Invalid Facebook token' });
+        }
+        const userDataResponse = await facebookUserLoginRouter({ token: userAccessToken })
+
+        if (userDataResponse.success && userDataResponse.existUser && (userDataResponse.data.accessToken && userDataResponse.data.refreshToken)) {
+            console.log("existUser", userDataResponse.data)
+            return res.status(200).json({
+                success: true,
+                accessToken: userDataResponse.data.accessToken,
+                refreshToken: userDataResponse.data.refreshToken,
+                message: userDataResponse.data.message
+            })
+        } else if (!userDataResponse.success && !userDataResponse.data) {
+            return res.status(400).json({ message: "invalid token" })
+        } else if (userDataResponse.data && userDataResponse.success && !userDataResponse.existUser) {
+            const usersignupToken = jwt.sign({
+                facebook_user_ID: userDataResponse.data.facebookID,
+                verified: true,
+            }, process.env.JWT_ACCESS_SECRET, {
+                expiresIn: "10m"
+            })
+            return res.status(201).json({
+                data: {
+                    success: true,
+                    firstName: userDataResponse.data.firstName,
+                    lastName: userDataResponse.data.lastName,
+                    email: userDataResponse.data.email,
+                    id: userDataResponse.data.facebookID,
+                    signUpTimer: usersignupToken,
+                },
+                success: true,
+            })
+        }
     } catch (err) {
-        console.error("Facebook authentication failed", err);
+        console.error("Facebook login error", err);
         res.status(500).json({ error: 'Facebook authentication failed' });
     }
 });

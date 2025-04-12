@@ -3,16 +3,26 @@ const router = express.Router()
 const { Group_Chat_Schema } = require('../model/dataModel')
 const { authenticateJWT } = require('./Functions/auth')
 require('dotenv').config()
+const mongoose = require('mongoose');
+const { ObjectId } = mongoose.Types;
 
 router.get('/auth/chatcheck', authenticateJWT, async (req, res) => {
     try {
         const userID = req.user.userID;
-        const chat = await Group_Chat_Schema.find({
-            members: { $all: [userID] }
-        });
+        const user_unique_name = req.user.unique_user_ID
+        console.log(user_unique_name)
+        // daraan (user_unique_name ) heregleh ystoi 
+        const chat = await Group_Chat_Schema.aggregate([
+            { $match: { members: new ObjectId(userID) } },
+            {
+                $project: {
+                    members: 1
+                }
+            }
+        ]);
+        console.log(chat)
         if (chat.length > 0) {
-            const chatGroupIDs = chat.map(group => group._id);
-            return res.json({ message: "Group chat exists", chatGroupIDs, success: true });
+            return res.json({ message: "Group chat exists", chatGroupIDs: chat, success: true });
         } else {
             return res.json({ message: "Group chat not found", success: false });
         }

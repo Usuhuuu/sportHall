@@ -258,9 +258,9 @@ const ZaalSchema = mongoose.model("Zaal_info", zaalSchema);
 const groupChatSchema = new Schema({
     members: [
         {
-            type: Schema.Types.ObjectId,
+            type: String,
             required: true,
-            ref: 'User'
+            ref: "User"
         }
     ],
     transaction_ID: {

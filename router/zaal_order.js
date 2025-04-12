@@ -10,6 +10,7 @@ router.post('/reserve', authenticateJWT, async (req, res) => {
     const { zaalId, date, startTime, endTime, num_players, current_player, total_amount } = req.body;
     try {
         const decodedUserID = req.user.userID
+        const user_unique_name = req.user.unique_user_ID
         const zaal = await ZaalSchema.findOne({ _id: zaalId })
         if (zaal) {
             // time slotiig odor tsagaarn shalgaad herev success bol 400 ogno
@@ -67,7 +68,7 @@ router.post('/reserve', authenticateJWT, async (req, res) => {
                     if (reserving) {
                         try {
                             const newGroup = await Group_Chat_Schema.create({
-                                members: [decodedUserID],
+                                members: [user_unique_name],
                                 messages: [],
                                 transaction_ID: reserving._id
                             })
