@@ -6,7 +6,10 @@ const jwt = require('jsonwebtoken');
 const { google } = require('googleapis');
 const { faker } = require('@faker-js/faker');
 const { facebookUserLoginRouter, facebookUserSignupContinue } = require("./functions/facebook_login_methods")
+const { googleLoginORsignup, googleSignupFinal } = require('./functions/google_login_method')
 
+//status 200 for user exist 
+//status 201 for user not exist and valid success
 router.post("/auth/facebook", async (req, res) => {
     const { fbData: data } = req.body;
     try {
@@ -65,9 +68,27 @@ router.post("/auth/facebook", async (req, res) => {
     }
 });
 
+
+
 router.post("/auth/google", async (req, res) => {
-    const { accessToken: userAccessToken } = req.body;
+    const { accessToken: userAccessToken, fbData: data } = req.body;
     try {
+        console.log("userAccessToken", req.body)
+        if (data && data.signUpTimer) {
+            console.log("signup_continue")
+            const signUpFinalResult = await googleSignupFinal({ signUpTimer: data.signUpTimer, data })
+            console.log("signUpFinalResult", signUpFinalResult)
+            if (signUpFinalResult.success) {
+                return res.status(200).json({
+                    success: true,
+                    accessToken: signUpFinalResult.data.accessToken,
+                    refreshToken: signUpFinalResult.data.refreshToken,
+                    message: signUpFinalResult.data.message
+
+
+                })
+            }
+        }
         const oauth2Client = new google.auth.OAuth2();
         oauth2Client.setCredentials({ access_token: userAccessToken });
 
@@ -87,78 +108,31 @@ router.post("/auth/google", async (req, res) => {
         const familyName = user.names[0]?.familyName || '';
         const googleId = user.resourceName.split('/')[1];
 
+        const userFind = await googleLoginORsignup({ googleID: googleId, userEmail: email })
+        if (userFind.success && userFind.existUser && (userFind.data.accessToken && userFind.data.refreshToken)) {
+            console.log("pisda1")
+            return res.status(200).json({
+                success: true,
+                accessToken: userFind.data.accessToken,
+                refreshToken: userFind.data.refreshToken,
+                message: userFind.data.message
 
-        const generateUsername = () => {
-            // Generate a username with an adjective, a noun, and a random number
-            const username = `${faker.word.adjective()}-${faker.word.noun()}-${faker.number.int({ min: 1000, max: 9999 })}`;
-            return username;
-        }
-        const username = generateUsername();
-        let findUser = await User.findOne({ email });
+            })
+        } else if (!userFind.success && !userFind.existUser && userFind.data.signUpTimer) {
+            console.log("pisda2")
 
-        if (!findUser) {
-            try {
-                findUser = await User.create({
+            return res.status(201).json({
+                data: {
+                    firstName: givenName,
+                    lastName: familyName,
                     email: email,
-                    userNames: {
-                        firstName: givenName,
-                        lastName: familyName
-                    },
-                    unique_user_ID: username,
-                    userAgreeTerms: {
-                        agree_terms: true,
-                        agree_privacy: true
-                    },
-                    third_party_user_ID: [{
-                        provider: "google",
-                        provided_ID: googleId
-                    }]
-                });
-            } catch (err) {
-                console.error("Google login: User creation failed", err);
-                return res.status(500).json({ message: 'User creation failed' });
-            }
-        } else {
-            try {
-                await User.updateOne(
-                    { email: email },
-                    {
-                        $addToSet: {
-                            third_party_user_ID: {
-                                provider: "google",
-                                provided_ID: googleId
-                            }
-                        }
-                    }
-                );
-            } catch (err) {
-                console.error("Failed to update third_party_user_ID", err);
-                return res.status(500).json({ message: 'User update failed' });
-            }
+                    googleID: googleId,
+                    signUpTimer: userFind.data.signUpTimer
+                },
+                success: true,
+                existUser: false,
+            })
         }
-        const user_ID = findUser._id
-        const accessTokens = jwt.sign({
-            userID: user_ID,
-            unique_user_ID: findUser.unique_user_ID
-        }, process.env.JWT_ACCESS_SECRET, {
-            algorithm: process.env.JWT_ALGORITHM,
-            expiresIn: process.env.JWT_EXPIRES_IN
-        });
-        console.log(accessTokens)
-
-        const refreshToken = jwt.sign({
-            userID: user_ID
-        }, process.env.JWT_REFRESH_SECRET, {
-            algorithm: process.env.JWT_ALGORITHM,
-            expiresIn: process.env.JWT_REFRESH_EXPIRES_IN
-        });
-
-        res.status(200).json({
-            auth: true,
-            accessTokens,
-            refreshToken,
-            message: "Successfully logged in with Google"
-        });
     } catch (err) {
         console.error(err);
         const statusCode = err.response?.status || 500;

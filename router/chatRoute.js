@@ -20,7 +20,6 @@ router.get('/auth/chatcheck', authenticateJWT, async (req, res) => {
                 }
             }
         ]);
-        console.log(chat)
         if (chat.length > 0) {
             return res.json({ message: "Group chat exists", chatGroupIDs: chat, success: true });
         } else {

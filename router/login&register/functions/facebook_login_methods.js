@@ -2,24 +2,29 @@ const jwt = require('jsonwebtoken');
 const jwksClient = require('jwks-rsa');
 const axios = require('axios');
 const { User } = require('../../../model/dataModel');
-const crypto = require('crypto');
-const { secure_password_function } = require('../../Functions/PBE');
-
 
 const facebookUserLoginRouter = async ({ token }) => {
   try {
     const facebook_graph_api = await classicFacebookLogin({ token })
-    return ({
-      data: {
-        facebookID: facebook_graph_api.data.id,
-        email: facebook_graph_api.data.email || null,
-        firstName: facebook_graph_api.data.firstName,
-        lastName: facebook_graph_api.data.lastName,
-        message: facebook_graph_api.data.message,
-      },
-      success: true,
-      existUser: facebook_graph_api.existUser ? true : false
-    })
+    if (!facebook_graph_api.success && facebook_graph_api.error) {
+      return {
+        success: false,
+        error: facebook_graph_api.error
+      }
+    } else {
+      return {
+        data: {
+          facebookID: facebook_graph_api.data.id,
+          email: facebook_graph_api.data.email || null,
+          firstName: facebook_graph_api.data.firstName,
+          lastName: facebook_graph_api.data.lastName,
+          message: facebook_graph_api.data.message,
+        },
+        success: true,
+        existUser: facebook_graph_api.existUser ? true : false
+      }
+    }
+
   } catch (err) {
     console.log("user not using classic login")
     try {
@@ -49,7 +54,7 @@ const classicFacebookLogin = async ({ token }) => {
       }
     });
     if (!facebookGraphApi.data || !facebookGraphApi.data.email) {
-      return { data: { message: 'Invalid Facebook token or no email provided', success: false } }
+      return { error: 'Invalid Facebook token or no email provided', success: false }
     } else if (facebookGraphApi.status === 200) {
       const user = facebookGraphApi.data;
       const [firstName, lastName = ''] = user.name.split(' ');
@@ -92,7 +97,7 @@ const classicFacebookLogin = async ({ token }) => {
             firstName,
             lastName,
             id: user.id,
-            email: user.email,
+            email: user.email || "",
             message: "User not found",
           },
           success: true,
@@ -106,7 +111,7 @@ const classicFacebookLogin = async ({ token }) => {
 
 }
 
-async function getLimitedFacebookUser({ token, appId }) {
+const getLimitedFacebookUser = async ({ token, appId }) => {
   if (!token) {
     throw new Error('JWT token not provided');
   }
@@ -222,7 +227,6 @@ const facebookUserSignupContinue = async ({ signUpTimer, data: fulldata }) => {
       userID: newUser._id,
       unique_user_ID: newUser.unique_user_ID,
       userType: newUser.userType,
-
     }, process.env.JWT_ACCESS_SECRET, {
       algorithm: process.env.JWT_ALGORITHM,
       expiresIn: process.env.JWT_EXPIRES_IN

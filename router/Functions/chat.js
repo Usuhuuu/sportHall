@@ -27,15 +27,11 @@ const setupWebSocket = (server) => {
     });
 
     io.on("connection", async (socket) => {
+        socket.join(socket.groupId);
         console.log(`User ${socket.userId} connected to group ${socket.groupId}`);
-
         socket.on("chatHistory", async ({ timer } = {}) => {
             try {
-
                 const timeStampConvert = timer ? new Date(timer) : new Date();
-                console.log("Time Stamp Convert: ", timeStampConvert);
-
-
                 const group = await Group_Chat_Schema.aggregate([
                     { $match: { _id: new ObjectId(socket.groupId) } },
                     { $unwind: "$messages" },
@@ -44,7 +40,6 @@ const setupWebSocket = (server) => {
                     { $limit: 20 },
                     { $group: { _id: "$_id", messages: { $push: "$messages" } } },
                 ])
-
                 if (!group || (Array.isArray(group) && group.length === 0)) {
                     console.log("No messages found");
                     return socket.emit("chatHistory", { messages: [], nextCursor: null });
@@ -62,23 +57,8 @@ const setupWebSocket = (server) => {
             }
         });
 
-        socket.on("joinGroup", async () => {
-            try {
-                const group = await Group_Chat_Schema.findById(socket.groupId);
-                if (!group) return socket.emit("errorMessage", { error: "Group not found" });
-
-                if (!group.members.includes(socket.userId)) {
-                    return socket.emit("errorMessage", { error: "You are not allowed to join this group." });
-                }
-
-                socket.join(socket.groupId);
-                socket.emit("joinGroupResponse", { success: `User ${socket.userId} joined group ${socket.groupId}` });
-
-                const messages = group.messages.sort((a, b) => a.timestamp - b.timestamp);
-                socket.emit("chatHistory", messages);
-            } catch (err) {
-                console.error("Error joining group:", err);
-            }
+        socket.on("joinGroupResponse", (res) => {
+            console.log("Joined group:", res);
         });
 
         socket.on("sendMessage", async (data) => {
@@ -108,15 +88,12 @@ const setupWebSocket = (server) => {
                     },
                     { new: true, upsert: true }
                 );
-
-                io.to(socket.groupId).emit("receiveMessage", {
-                    socketId: socket.groupId,
-                    messages: {
-                        sender_unique_name: data.sender_unique_name,
-                        senderId: socket.userId,
-                        message: message,
-                        timestamp: data.timestamp
-                    }
+                socket.to(socket.groupId).emit("receiveMessage", {
+                    groupId: socket.groupId,
+                    sender_unique_name: data.sender_unique_name,
+                    senderId: socket.userId,
+                    message: message,
+                    timestamp: data.timestamp,
                 });
 
                 console.log(`Message from ${socket.userId} in group ${socket.groupId}: ${message}`);
